@@ -18,6 +18,7 @@ import * as Mission from '../views/mission.js'
 import * as Lock from '../views/lock.js'
 import * as Journal from '../views/journal.js'
 import * as Settings from '../views/settings.js'
+import * as Admin from '../views/admin.js'
 
 const ROUTES = {
   '': { view: Home, label: 'Home', icon: '⏰' },
@@ -28,6 +29,7 @@ const ROUTES = {
 
 // Mission is reachable by hash while an episode is live; otherwise it's a card.
 const MISSION_ROUTE = '#/mission'
+const ADMIN_ROUTE = '#/admin'
 
 const app = document.getElementById('app')
 let current = null // { key, view, mountPromise }
@@ -49,25 +51,35 @@ function overlayFor(state) {
 }
 
 function shell(activeRoute, state) {
-  const nav = Object.entries(ROUTES)
-    .map(([hash, r]) => {
-      const isHome = hash === ''
-      const active = isHome ? activeRoute === '' || !ROUTES[activeRoute] : activeRoute === hash
-      return `<a href="${isHome ? '#/' : hash}" class="${active ? 'active' : ''}"><span class="ico">${r.icon}</span>${r.label}</a>`
+  const admin = logic.adminActive(state.settings)
+  const items = [
+    ...Object.entries(ROUTES).map(([hash, r]) => ({ ...r, hash })),
+    { hash: ADMIN_ROUTE, label: 'Admin', icon: admin ? '🔓' : '🔐', view: Admin, admin: true },
+  ]
+  const nav = items
+    .map((r) => {
+      const isHome = r.hash === ''
+      const href = isHome ? '#/' : r.hash
+      const active = isHome ? activeRoute === '' || !ROUTES[activeRoute] : activeRoute === r.hash
+      return `<a href="${href}" class="${active ? 'active' : ''} ${r.admin && admin ? 'alert' : ''}" ${
+        r.admin ? 'data-nav-admin' : ''
+      }><span class="ico">${r.icon}</span>${r.label}</a>`
     })
     .join('')
+  const cols = items.length
 
   return `
     <div class="brand">
-      <div class="brand-mark">🔒</div>
+      <div class="brand-mark" data-brand-hold>🔒</div>
       <div class="grow">
         <h1>Wake or Lock</h1>
         <small>no snooze · no gallery · no early release</small>
       </div>
-      ${state.strikes ? `<span class="pill hot">${state.strikes} strike${state.strikes > 1 ? 's' : ''}</span>` : '<span class="pill">clean</span>'}
+      ${admin ? `<span class="pill demo" data-brand-hold title="Admin lease active">🔓 admin</span>` : ''}
+      ${state.strikes ? `<span class="pill hot" data-brand-hold>${state.strikes} strike${state.strikes > 1 ? 's' : ''}</span>` : admin ? '' : '<span class="pill" data-brand-hold>clean</span>'}
     </div>
     <main id="screen"></main>
-    <nav class="nav">${nav}</nav>
+    <nav class="nav" style="grid-template-columns:repeat(${cols},1fr)">${nav}</nav>
   `
 }
 
@@ -75,6 +87,19 @@ function shell(activeRoute, state) {
 const Success = {
   render(state) {
     const ep = state.episode
+    if (ep.outcome === 'bypassed') {
+      return `
+      <div class="overlay" style="background:linear-gradient(180deg,#171006,#08070a);justify-content:center">
+        <div class="center">
+          <div style="font-size:56px">🛡</div>
+          <div style="font-size:22px;font-weight:800;margin-top:8px">Admin bypass</div>
+          <div class="small muted" style="margin-top:8px">The deadline passed and the engine let you go.<br/>Logged as <b>bypass</b> — no strike, no lockout, and this run does not count as a win.</div>
+          <div class="card" style="margin-top:20px;text-align:left">
+            <div class="tiny muted">Turn the teeth back on in <a href="#/admin" style="color:var(--warn)">Admin</a> → sign out, or flip <b>No lockouts</b> off. A lease that never expires is a hobby, not an alarm clock.</div>
+          </div>
+        </div>
+      </div>`
+    }
     return `
     <div class="overlay" style="background:radial-gradient(700px 520px at 50% 20%, rgba(48,209,88,.28), transparent 62%), linear-gradient(180deg,#04140a,#05070a);justify-content:center">
       <div class="center">
@@ -98,7 +123,9 @@ async function render(force = false) {
   const state = engine.snapshot()
   const overlay = overlayFor(state)
   const route = location.hash === '#/' || !location.hash ? '' : location.hash
-  const routeDef = ROUTES[route] ?? (route === MISSION_ROUTE ? { view: Mission, label: 'Mission' } : Home)
+  const routeDef =
+    ROUTES[route] ??
+    (route === MISSION_ROUTE ? { view: Mission, label: 'Mission' } : route === ADMIN_ROUTE ? { view: Admin, label: 'Admin' } : Home)
 
   const key = overlay ? overlay.key : `route:${route}`
   const view = overlay ? overlay.view : routeDef.view
@@ -158,6 +185,28 @@ async function claimSingleton() {
   return owner
 }
 
+/** Hold the brand mark ~0.7 s → admin door. Also reachable from the nav. */
+function brandDoor() {
+  let timer = null
+  const fire = () => {
+    clearTimeout(timer)
+    timer = null
+    location.hash = ADMIN_ROUTE
+  }
+  app.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('[data-brand-hold]')) return
+    timer = setTimeout(fire, 700)
+  })
+  const cancel = () => timer && clearTimeout(timer)
+  app.addEventListener('pointerup', cancel)
+  app.addEventListener('pointercancel', cancel)
+  app.addEventListener('pointermove', (e) => {
+    if (!timer) return
+    if (e.pointerType === 'mouse') return
+    cancel()
+  })
+}
+
 function traps() {
   window.addEventListener('popstate', () => {
     const st = engine.snapshot()
@@ -205,6 +254,7 @@ async function boot() {
     render(true)
   })
   traps()
+  brandDoor()
   await render(true)
 
   if (!owner) {

@@ -42,7 +42,7 @@ Succeed once and the ladder resets to strike 1. Every strike is a doubling lesso
 
 ```bash
 node serve.js 5173          # → http://localhost:5173
-npm test                    # 31 tests: rules engine + full headless mission flows + no-way-out invariants
+npm test                    # 50 tests: rules engine, headless mission flows, no-way-out invariants, admin lease
 node tools/make-icons.mjs   # regenerate the PNG icons from the SDF drawing code
 ```
 
@@ -78,6 +78,27 @@ docs/NATIVE.md        what has to change to make the lockout actually inescapabl
 Verification is deliberately transparent: every check returns `{ ok, label, reasons[] }` and the reasons are printed on screen, so a rejection tells you *why* ("sky 0%, green 2%", "held 0.9 s, needed 1.5 s") instead of gaslighting you at 7 a.m.
 
 The pose check is heuristics (frame-diff steadiness + skin/edge signature), not real keypoint ML — offline, zero dependencies, and swappable: `registerPoseVerifier({ name: 'mediapipe', verify() {...} })` in `src/verify.js` replaces it without touching the state machine.
+
+## Admin lease (the "test account")
+
+There is no server, so there are no accounts — what exists instead is a **PIN-gated session lease** that changes what the *state machine* does, not just what a screen shows.
+
+Reach it: bottom nav → 🔐 Admin, or long-press the header. Factory PIN **`0000`** (change it in the console).
+
+| Switch | Effect |
+| --- | --- |
+| **No lockouts** (default on) | A blown mission closes as `bypassed` — ring stops, no lock screen, **no strike**. Enforced in `engine._fail()` via `logic.shouldLockOut()` |
+| Auto-pass captures | Any frame is accepted; the checks still run and each rejection is stored, marked `autoPassed` |
+| Ignore photo spacing | Fire all 3 indoor shots in one second |
+| Silent ring | Full takeover UI, no siren, no vibration |
+
+Plus a punishment lab (preview the lock screen for 30 s / 2 min without touching your record, grant or revoke real strikes, edit the ladder live), an episode sandbox (fire a rigged alarm, fast-forward the buzz / deadline / lockout, abort an episode), and state inspection + full export.
+
+Three design decisions worth knowing:
+
+- **It expires.** The lease defaults to 240 minutes, then the app punishes you again. "Never expire" exists, and the UI calls you out for choosing it — otherwise you'd wake up next Tuesday to an alarm clock you quietly neutered.
+- **Every admin action is journaled** (`bypass`, `admin_on`, `admin_abort`, `admin_config`, and wrong-PIN attempts), so a test run can never be mistaken for a clean streak. Bypasses do not move the ladder in either direction.
+- **It is a guardrail, not security.** Anyone holding the phone can read the PIN out of IndexedDB; a web app has no keychain and no server to check against. On the native build this becomes Keystore + BiometricPrompt (`docs/NATIVE.md`).
 
 ## Honest limits of a browser build
 

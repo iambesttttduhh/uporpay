@@ -55,8 +55,12 @@ test('shell boots with nav, brand and a screen', async () => {
   const html = dom.window.document.getElementById('app').innerHTML
   assert.match(html, /Wake or Lock/)
   assert.match(html, /class="nav"/)
-  const links = dom.window.document.querySelectorAll('.nav a')
-  assert.equal(links.length, 4, 'Home / Alarms / Journal / Settings')
+  const links = [...dom.window.document.querySelectorAll('.nav a')]
+  assert.deepEqual(
+    links.map((a) => a.textContent.trim()),
+    ['⏰Home', '🔔Alarms', '📖Journal', '⚙️Settings', '🔐Admin'],
+    'nav is the four app tabs plus the admin door'
+  )
   assert.equal(errors.length, 0, `boot errors: ${errors.join(' | ')}`)
 })
 

@@ -26,14 +26,37 @@ export function render(state) {
   </div>
 
   ${
+    logic.adminActive(settings)
+      ? `<div class="card" style="border-color:rgba(255,159,10,.45);background:linear-gradient(180deg,rgba(255,159,10,.12),rgba(255,159,10,.02));margin-bottom:12px">
+           <div class="row">
+             <div style="font-size:22px">🔓</div>
+             <div class="grow">
+               <div class="small" style="font-weight:750">Admin lease active — ${esc(logic.adminActiveFlags(settings).join(' · ') || 'nothing overridden')}</div>
+               <div class="tiny muted" style="margin-top:3px">Failures will be logged as <b>bypassed</b>, not as lockouts. ${
+                 Number.isFinite(logic.adminLeaseLeft(settings, state.now))
+                   ? `Re-arms in <b class="mono" data-cd="${state.now + logic.adminLeaseLeft(settings, state.now)}"></b>.`
+                   : '<b style="color:var(--warn)">No expiry — sign out in Admin when you are done testing.</b>'
+               }</div>
+             </div>
+             <a class="btn sm" href="#/admin" style="text-decoration:none">Console</a>
+           </div>
+         </div>`
+      : ''
+  }
+
+  ${
     lastOutcome && Date.now() - lastOutcome.at < 90_000
-      ? `<div class="card ${lastOutcome.kind === 'woke' ? '' : 'card--danger'}" style="margin-bottom:12px">
+      ? `<div class="card ${lastOutcome.kind === 'woke' || lastOutcome.kind === 'bypassed' ? '' : 'card--danger'}" style="margin-bottom:12px">
            <div class="row">
              <div style="font-size:26px">${lastOutcome.kind === 'woke' ? '😤' : '🔒'}</div>
              <div class="grow">
                <div class="small" style="font-weight:700">${
                  lastOutcome.kind === 'woke'
                    ? `Out of bed in ${logic.formatDuration(lastOutcome.completionMs)} — ${lastOutcome.mode === 'outside' ? 'fresh air' : 'three poses'} done`
+                   : lastOutcome.kind === 'bypassed'
+                   ? 'Admin override: mission blew, nothing happened'
+                   : lastOutcome.kind === 'aborted'
+                   ? 'Episode aborted from the admin console'
                    : `Lockover served. ${logic.formatDuration((lastOutcome.lockMinutes ?? 0) * 60000)} lost.`
                }</div>
                <div class="tiny muted">${

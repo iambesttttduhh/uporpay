@@ -49,6 +49,11 @@ export function render(state) {
 
     <div style="margin-bottom:6px">
       <a class="btn block" href="tel:" style="text-decoration:none;background:rgba(255,255,255,.1)">📞 Emergency call only</a>
+      ${
+        logic.adminActive(s)
+          ? `<button class="btn block" data-admin-exit style="margin-top:9px;border-color:rgba(255,159,10,.5);background:rgba(255,159,10,.14);color:var(--warn)">🔓 Admin override — end this lockout${ep.adminPreview ? ' (preview)' : ''}</button>`
+          : ''
+      }
       <div class="tiny muted center" style="margin-top:8px">Voice calls still connect. That is the only thing this screen lets through.</div>
       ${
         s.panicReleaseEnabled
@@ -61,6 +66,11 @@ export function render(state) {
 
 export function mount(root, state) {
   const ep = state.episode
+  root.querySelector('[data-admin-exit]')?.addEventListener('click', async () => {
+    if (ep?.adminPreview) await engine.clearLockPreview()
+    else await engine.adminAbort()
+    toast('Ended by admin lease. The record was not rewritten.', 'good')
+  })
   if (!ep || ep.phase !== 'locked') return
   history.pushState({ wol: 'locked' }, '')
   const onPop = () => {

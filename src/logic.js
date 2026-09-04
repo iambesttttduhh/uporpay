@@ -46,6 +46,15 @@ export const DEFAULT_SETTINGS = {
   escalationNagAfterRing: true, // after ringMinutes, nag in bursts until deadline
   strikeGraceResetsAfterSuccess: true,
 
+  // --- admin / test account (a session lease, not a permanent off switch) --
+  adminPin: '0000',
+  adminUnlockedAt: null,      // epoch ms of the last PIN unlock
+  adminLeaseMinutes: 240,     // auto re-arms itself; 0 = stay unlocked (loud warning)
+  adminGodMode: true,         // never lock out — the headline switch
+  adminAutoPass: false,       // accept any capture, checks recorded but non-binding
+  adminInstantSpacing: false, // no 10-minute wait between indoor shots
+  adminQuietRing: false,      // ring silently while testing the flow
+
   // --- escape hatches (see README: a real hard lock needs care) ------------
   panicReleaseEnabled: false, // hold-to-release button on the lock screen
   panicReleaseCostsStrike: true,
@@ -224,6 +233,42 @@ export function currentStepIndex(episode) {
   return (episode?.captures?.length ?? 0)
 }
 
+// ---------------------------------------------------------------------------
+// admin console — the tester's lease
+// ---------------------------------------------------------------------------
+
+/** True while an admin session is live (PIN verified, lease unexpired). */
+export function adminActive(settings, nowMs = Date.now()) {
+  if (!settings?.adminUnlockedAt) return false
+  const ttl = settings.adminLeaseMinutes
+  if (!ttl) return true // "stay unlocked" — deliberate, and flagged everywhere
+  return nowMs - settings.adminUnlockedAt < ttl * MIN
+}
+
+/** How much of the lease is left, for the header badge. */
+export function adminLeaseLeft(settings, nowMs = Date.now()) {
+  if (!settings?.adminUnlockedAt) return null
+  if (!settings.adminLeaseMinutes) return Infinity
+  return Math.max(0, settings.adminUnlockedAt + settings.adminLeaseMinutes * MIN - nowMs)
+}
+
+/** Which overrides are currently in force, as short labels. */
+export function adminActiveFlags(settings) {
+  if (!adminActive(settings)) return []
+  const flags = []
+  if (settings.adminGodMode) flags.push('no lockout')
+  if (settings.adminAutoPass) flags.push('auto-pass')
+  if (settings.adminInstantSpacing) flags.push('no spacing')
+  if (settings.adminQuietRing) flags.push('silent')
+  return flags
+}
+
+/** A PIN is 4 digits or empty-rejected; nothing more fancy, it is not security. */
+export function normalizePin(input) {
+  const digits = String(input ?? '').replace(/\D/g, '')
+  return digits.length >= 4 ? digits.slice(0, 8) : null
+}
+
 /** How long each pose must be held while the shutter counts down. */
 export const POSE_HOLD_MS = 1500
 
@@ -279,6 +324,16 @@ export function describeLockCurve(settings) {
   return (settings.lockHoursCurve ?? [])
     .map((h, i) => `strike ${i + 1} → ${settings.testMode ? `${h} min` : `${h} h`}`)
     .join(', ')
+}
+
+/**
+ * The one place that decides whether a blown mission becomes a lockout.
+ * God mode returns false here, so the *state machine* — not just the UI — stops
+ * punishing. Everything else (logging, the ring, the mission) still runs.
+ */
+export function shouldLockOut(settings, nowMs = Date.now()) {
+  if (!adminActive(settings, nowMs)) return true
+  return !settings.adminGodMode
 }
 
 /** What the next strike will cost — shown up front, no surprises. */

@@ -74,6 +74,13 @@ function row(e) {
     locked: ['bad', '🔒', `Locked out for ${logic.formatDuration((e.lockMinutes ?? 0) * 60000)} — ${esc(e.reason ?? '')}`],
     released: ['', '🔓', `Lockout of ${logic.formatDuration((e.lockMinutes ?? 0) * 60000)} served${e.restored ? ' (resumed after reload)' : ''}`],
     panic: ['bad', '🚨', `Panic release taken${e.penalty ? ' — strike added' : ''}`],
+    bypass: ['', '🛡', `Mission blown during an admin lease — no lockout, no strike`],
+    admin_abort: ['', '⏏', 'Episode aborted from the admin console'],
+    admin_on: ['', '🔓', `Admin lease started${e.leaseMinutes ? ` (${e.leaseMinutes} min)` : ' (no expiry)'}`],
+    admin_off: ['', '🔒', 'Admin lease ended — punishment re-armed'],
+    admin_denied: ['bad', '🔑', 'Admin unlock rejected (wrong PIN)'],
+    admin_config: ['', '⚙️', `Admin overrides changed: ${Object.keys(e).filter((k) => k.startsWith('admin') && !['admin'].includes(k)).map((k) => `${k.replace('admin', '')}=${e[k]}`).join(', ') || '—'}`],
+    admin: ['', '🛡', 'Admin action (no effect on your record)'],
     reset: ['', '🧹', 'All app data wiped by the user'],
   }
   const [cls, ico, text] = map[e.type] ?? ['', '•', e.type]

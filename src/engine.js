@@ -227,7 +227,8 @@ class Engine {
     if (ep.phase === PHASE.RINGING) {
       // continuous buzz until ringDeadlineAt, then escalating nag bursts
       if (now > ep.ringDeadlineAt) {
-        if (this.settings.escalationNagAfterRing && now - this._nagAt > this._nagInterval()) {
+        const quiet = logic.adminActive(this.settings) && this.settings.adminQuietRing
+        if (this.settings.escalationNagAfterRing && !quiet && now - this._nagAt > this._nagInterval()) {
           this._nagAt = now
           alarmSound.pulse({ duration: 2.2, freq: 1046 })
         }
@@ -301,8 +302,9 @@ class Engine {
   }
 
   _beginRinging() {
-    alarmSound.enabled = this.settings.soundOn
-    alarmSound.vibrate = this.settings.vibrateOn
+    const quiet = logic.adminActive(this.settings) && this.settings.adminQuietRing
+    alarmSound.enabled = this.settings.soundOn && !quiet
+    alarmSound.vibrate = this.settings.vibrateOn && !quiet
     alarmSound.start(this.episode?.profile ?? 'siren')
     acquireWakeLock()
   }
@@ -371,7 +373,8 @@ class Engine {
     // 1) spacing — the core of the 3-shots/10-minutes rule
     const earliest = logic.earliestNextCaptureAt(ep, s)
     const at = Date.now()
-    const early = at < earliest
+    const admin = logic.adminActive(this.settings)
+    const early = at < earliest && !(admin && this.settings.adminInstantSpacing)
     checks.push({
       ok: !early,
       label:
@@ -396,6 +399,13 @@ class Engine {
     }
 
     const verdict = logic.evaluateStep(checks)
+    if (!verdict.ok && admin && this.settings.adminAutoPass) {
+      verdict.ok = true
+      verdict.autoPassed = true
+      checks.forEach((c) => {
+        if (!c.ok) c.autoPassed = true
+      })
+    }
     const shotId = logic.uid('shot')
     const shot = { id: shotId, episodeId: ACTIVE_EPISODE, at, stepIndex, kind: step.kind, poseId: pose.id, dataUrl, live, simulated }
     this.shots = [...this.shots, shot]
@@ -403,6 +413,7 @@ class Engine {
 
     if (!verdict.ok) {
       // Record the attempt so cheating is visible, but don't advance the step.
+      // (Auto-pass lands here never — it flips verdict.ok above.)
       ep.failedAttempts = (ep.failedAttempts ?? 0) + 1
       await this._saveEpisode()
       this._emit()
@@ -452,10 +463,15 @@ class Engine {
     this._emit()
   }
 
-  /** Deadline blown → the phone goes away. */
+  /**
+   * Deadline blown → the phone goes away. UNLESS an admin lease says otherwise:
+   * that check lives here, in the state machine, so "no lockout" cannot be
+   * undone by the UI, a reload, or a half-configured screen.
+   */
   async _fail({ restored = false } = {}) {
     const ep = this.episode
     if (!ep || ep.phase === PHASE.LOCKED) return
+    if (!logic.shouldLockOut(this.settings)) return this._bypass('mission deadline reached')
     const strikes = logic.strikesFromEvents(this.events) + 1
     const minutes = logic.lockMinutesFor(strikes, this.settings)
     ep.phase = PHASE.LOCKED
@@ -486,6 +502,31 @@ class Engine {
     await alarmSound.failure()
     await enterFullscreen()
     if ('wakeLock' in navigator) acquireWakeLock() // keep the lock screen on top
+    this._emit()
+  }
+
+  /** Admin override: close the episode, change nothing about your record. */
+  async _bypass(reason) {
+    const ep = this.episode
+    if (!ep) return
+    alarmSound.stop()
+    releaseWakeLock()
+    exitFullscreen()
+    ep.phase = PHASE.SUCCESS
+    ep.outcome = 'bypassed'
+    ep.clearAt = Date.now() + (this.settings.demoTiming ? 4000 : 8000)
+    await this._logEvent({
+      type: 'bypass',
+      episodeId: ACTIVE_EPISODE,
+      alarmId: ep.alarmId,
+      label: ep.label,
+      mode: ep.mode,
+      shots: ep.captures.length,
+      reason,
+      admin: true,
+    })
+    this.lastOutcome = { kind: 'bypassed', at: Date.now(), reason, admin: true }
+    await this._saveEpisode()
     this._emit()
   }
 
@@ -608,6 +649,72 @@ class Engine {
     this._emit()
   }
 
+  // -- admin console --------------------------------------------------------
+
+  /** PIN check. Returns false and leaves the lease untouched on a miss. */
+  async unlockAdmin(pin) {
+    if (String(pin ?? '').trim() !== String(this.settings.adminPin ?? '').trim()) {
+      await this._logEvent({ type: 'admin_denied', at: Date.now(), reason: 'bad pin' })
+      return false
+    }
+    await this.setSettings({ adminUnlockedAt: Date.now() })
+    await this._logEvent({ type: 'admin_on', reason: 'PIN accepted', leaseMinutes: this.settings.adminLeaseMinutes })
+    return true
+  }
+
+  /** Re-arm the alarm clock. After this the app punishes you again. */
+  async lockAdmin() {
+    await this.setSettings({ adminUnlockedAt: null })
+    await this._logEvent({ type: 'admin_off', reason: 'lease ended by user' })
+  }
+
+  async adminFlags(patch) {
+    await this.setSettings({ ...patch })
+    await this._logEvent({ type: 'admin_config', ...patch })
+  }
+
+  /** Close a live episode with no win and no punishment — purely a test tool. */
+  async adminAbort() {
+    const ep = this.episode
+    if (!ep) return false
+    alarmSound.stop()
+    releaseWakeLock()
+    exitFullscreen()
+    await this._logEvent({
+      type: 'admin_abort',
+      episodeId: ACTIVE_EPISODE,
+      alarmId: ep.alarmId,
+      label: ep.label,
+      phase: ep.phase,
+      shots: ep.captures.length,
+      admin: true,
+    })
+    this.lastOutcome = { kind: 'aborted', at: Date.now(), admin: true }
+    this.episode = null
+    await this._saveEpisode()
+    this._emit()
+    return true
+  }
+
+  /** +1 / -1 on the ladder, written as real log entries so it stays coherent. */
+  async adjustStrikes(delta) {
+    if (delta > 0) {
+      for (let i = 0; i < delta; i++) {
+        await this._logEvent({ type: 'locked', strike: null, lockMinutes: 0, reason: 'strike granted by admin', admin: true })
+      }
+    } else {
+      for (let i = 0; i < -delta; i++) {
+        await this._logEvent({ type: 'woke', mode: 'admin', completionMs: 0, shots: 0, admin: true })
+      }
+    }
+    this._emit()
+  }
+
+  /** Show the lock screen on demand — it never counts against you. */
+  async previewLock(minutes = 1) {
+    await this.recordManualLock(minutes, { preview: true })
+  }
+
   /** Full reset. Only offered on the settings screen, logged before it happens. */
   async resetAll() {
     await this._logEvent({ type: 'reset', reason: 'User wiped all app data from settings' })
@@ -622,7 +729,7 @@ class Engine {
     this._emit()
   }
 
-  async recordManualLock(minutes) {
+  async recordManualLock(minutes, { preview = false } = {}) {
     const strikes = logic.strikesFromEvents(this.events) + 1
     this.episode = {
       id: ACTIVE_EPISODE,
@@ -638,7 +745,8 @@ class Engine {
       strike: strikes,
       lockMinutes: minutes,
       lockUntil: Date.now() + minutes * 60_000,
-      reason: 'Triggered from settings (testing the lock screen)',
+      adminPreview: preview,
+      reason: preview ? 'Admin preview of the lock screen — not a real punishment' : 'Triggered from settings (testing the lock screen)',
       outcome: 'locked',
       oneShot: true,
       clearAt: null,
@@ -647,6 +755,17 @@ class Engine {
     await enterFullscreen()
     await alarmSound.failure()
     this._emit()
+  }
+
+  /** End an admin preview lock without touching the log's punishment totals. */
+  async clearLockPreview() {
+    const ep = this.episode
+    if (!ep?.adminPreview) return false
+    this.episode = null
+    await this._saveEpisode()
+    await this._logEvent({ type: 'admin', reason: 'lock preview ended early', admin: true })
+    this._emit()
+    return true
   }
 
   stop() {

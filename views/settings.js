@@ -83,6 +83,7 @@ export function render(state) {
   </div>
 
   <div class="section-title">Demo & self-testing</div>
+  <div class="note" style="margin-bottom:10px">The full sandbox lives in <b>Admin</b> (<code>#/admin</code>, or long-press the header) — god mode there is what disables lockouts at the engine level. These two switches only loosen <i>verification</i>, and real lockouts still land.</div>
   <div class="card">
     <div class="toggle-row">
       <div class="txt">Demo timing (÷60)<small>5 min → 5 s, 30 min → 30 s, 1 h lock → 1 min. Everything in the app, including the lockout.</small></div>

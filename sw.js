@@ -1,5 +1,5 @@
 // Precache the shell so the alarm still works on a flaky morning wifi.
-const CACHE = 'wol-v1'
+const CACHE = 'wol-v2'  // bump on any module change: the SW is cache-first for app code
 const SHELL = ['/', '/index.html', '/styles.css', '/manifest.webmanifest', '/icons/app.svg']
 const MODULES = [
   '/src/app.js',
@@ -16,6 +16,7 @@ const MODULES = [
   '/views/lock.js',
   '/views/journal.js',
   '/views/settings.js',
+  '/views/admin.js',
 ]
 
 self.addEventListener('install', (e) => {
