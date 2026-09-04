@@ -45,3 +45,13 @@ or on Android:  adb reverse tcp:5173 tcp:5173  -> http://localhost:5173 on the p
 
 Everything stays on the device: no server, no accounts, no analytics.
 Full write-up: README.md
+
+WANT THE ANDROID APK?
+  The build runs on GitHub Actions: push this folder to a repo, then
+  Actions -> "Android APK" -> Run workflow. Download wake-or-lock-debug.apk from
+  the run's Artifacts and install it (allow "install unknown apps").
+  Building locally needs a JDK 17 + Android SDK:
+      npm ci && npm run android:apk
+  then flash  android/app/build/outputs/apk/debug/app-debug.apk
+  Docs: docs/APK.md (what is native, permissions checklist)
+        docs/DEVICE_OWNER.md (the version with no exit button)

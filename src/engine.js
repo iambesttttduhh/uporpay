@@ -20,6 +20,7 @@ import * as db from './db.js'
 import { alarmSound, acquireWakeLock, releaseWakeLock, enterFullscreen, exitFullscreen } from './audio.js'
 import { verifyOutside, verifyMovementBetweenShots, analyzeImageData, verifyShot } from './verify.js'
 import { motionProbe, currentLocation } from './camera.js'
+import { native, detect as detectNative } from './native.js'
 
 const TICK_MS = 400
 const ACTIVE_EPISODE = 'active'
@@ -57,12 +58,21 @@ class Engine {
     this._started = true
     await db.dbReady
     await this._load()
+    await detectNative()
     this._resumeEpisode()
+    await this._reconcileNative()
+    if (native.available) {
+      void native.rescheduleAll(this.alarms)
+      // Android 13+ needs an explicit yes before an alarm is allowed to shout.
+      void native.requestNotifications()
+    }
     this._timer = setInterval(() => this.tick(), TICK_MS)
+    // Returning to the app is the moment a native alarm may have fired with the
+    // WebView frozen, so both handlers reconcile before they render.
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') this.tick()
+      if (document.visibilityState === 'visible') this.resume()
     })
-    window.addEventListener('focus', () => this.tick())
+    window.addEventListener('focus', () => this.resume())
     // First real gesture unlocks audio; needed because we may have to ring loud.
     const arm = () => alarmSound.arm()
     window.addEventListener('pointerdown', arm, { once: true })
@@ -109,6 +119,21 @@ class Engine {
   subscribe(fn) {
     this.listeners.add(fn)
     return () => this.listeners.delete(fn)
+  }
+
+  /**
+   * Coming back to the foreground. In the APK this is where an alarm that fired
+   * while the WebView was frozen gets picked up; in a browser it is just a tick.
+   */
+  async resume() {
+    if (native.available) {
+      try {
+        await this._reconcileNative()
+      } catch (err) {
+        console.warn('[native] reconcile failed', err)
+      }
+    }
+    this.tick()
   }
 
   _emit() {
@@ -164,6 +189,144 @@ class Engine {
     return rec
   }
 
+  /**
+   * Reconcile what the device recorded while the app was not running.
+   *
+   * This is the honest answer to "my phone didn't go off": it did go off, and
+   * Android kept the receipt. Either you get the mission with the time you have
+   * left, or — if the window already closed while you were asleep — the lockout
+   * engages on launch. Controlled by `lockOnMissedWhileClosed`.
+   */
+  async _reconcileNative() {
+    if (!native.available) return
+    const launched = await native.consumeLaunch()
+    let due = await native.dueAlarms()
+    if (launched && !due.some((d) => d.id === launched)) {
+      due = [{ id: launched, firedAt: Date.now(), label: 'Alarm', mode: 'choose' }, ...due]
+    }
+    if (!due.length) {
+      // Re-apply an OS lockout that outlived the WebView.
+      const st = await native.lockState()
+      if (st?.locked && !this.episode) {
+        await this._adoptNativeLock(st)
+      }
+      return
+    }
+    for (const record of due) {
+      if (this.episode?.alarmId === record.id) {
+        void native.acknowledge(record.id)
+        continue
+      }
+      if (this.episode) continue // one episode at a time; the rest stay due
+      const firedAt = Number(record.firedAt) || Date.now()
+      const deadline = firedAt + logic.missionWindowMs(this.settings)
+      if (Date.now() >= deadline) {
+        if (this.settings.lockOnMissedWhileClosed === false) {
+          void native.acknowledge(record.id)
+          await this._logEvent({
+            type: 'missed',
+            alarmId: record.id,
+            label: record.label ?? '',
+            firedAt,
+            reason: 'Missed while the app was closed — grace setting on',
+          })
+          this.lastOutcome = { kind: 'missed', at: Date.now(), firedAt, grace: true }
+          continue
+        }
+        await this._lockFromMissed(record, firedAt)
+        continue
+      }
+      await this._catchUpEpisode(record, firedAt, deadline)
+    }
+  }
+
+  /** Open the episode the alarm would have opened, with its original clock. */
+  async _catchUpEpisode(record, firedAt, deadline) {
+    const alarm = this.alarms.find((a) => a.id === record.id)
+    this.episode = {
+      id: ACTIVE_EPISODE,
+      alarmId: record.id,
+      label: record.label || alarm?.label || 'Missed alarm',
+      profile: alarm?.profile ?? 'siren',
+      oneShot: alarm?.oneShot ?? false,
+      forcedMode: alarm?.missionMode && alarm.missionMode !== 'choose' ? alarm.missionMode : null,
+      firedAt,
+      phase: PHASE.RINGING,
+      ringDeadlineAt: firedAt + logic.ringMs(this.settings),
+      missionDeadlineAt: deadline,
+      acceptedAt: null,
+      startedMissionAt: null,
+      mode: alarm?.missionMode && alarm.missionMode !== 'choose' ? alarm.missionMode : null,
+      captures: [],
+      outcome: null,
+      clearAt: null,
+      lockUntil: null,
+      lockMinutes: null,
+      reason: null,
+      failedAttempts: 0,
+      caughtUp: true,
+    }
+    void native.acknowledge(record.id)
+    if (alarm) {
+      const local = this.alarms.find((a) => a.id === alarm.id)
+      if (local) local.lastFiredAt = firedAt
+      await db.put('alarms', { ...alarm, lastFiredAt: firedAt })
+    }
+    await this._saveEpisode()
+    this._beginRinging()
+    this._emit()
+  }
+
+  /** Past the window already: strike now, lock now. */
+  async _lockFromMissed(record, firedAt) {
+    this.episode = {
+      id: ACTIVE_EPISODE,
+      alarmId: record.id,
+      label: record.label || 'Missed alarm',
+      firedAt,
+      phase: PHASE.RINGING,
+      ringDeadlineAt: firedAt,
+      missionDeadlineAt: firedAt,
+      acceptedAt: null,
+      startedMissionAt: null,
+      mode: null,
+      captures: [],
+      clearAt: null,
+      lockUntil: null,
+      lockMinutes: null,
+      reason: null,
+      failedAttempts: 0,
+      reason: 'The alarm fired while the app was closed, and the window ran out',
+    }
+    void native.acknowledge(record.id)
+    await this._saveEpisode()
+    await this._fail()
+    this._emit()
+  }
+
+  async _adoptNativeLock(st) {
+    this.episode = {
+      id: ACTIVE_EPISODE,
+      alarmId: null,
+      label: 'Lockout',
+      firedAt: Date.now() - (st.remainingMs ?? 0),
+      phase: PHASE.LOCKED,
+      ringDeadlineAt: Date.now(),
+      missionDeadlineAt: Date.now(),
+      acceptedAt: Date.now(),
+      startedMissionAt: Date.now(),
+      mode: null,
+      captures: [],
+      clearAt: null,
+      lockMinutes: Math.max(1, Math.round((st.remainingMs ?? 0) / 60000)),
+      lockUntil: Date.now() + (st.remainingMs ?? 60000),
+      reason: st.reason || 'Lockout carried across an app restart',
+      failedAttempts: 0,
+    }
+    await this._saveEpisode()
+    this._emit()
+  }
+
   // -- alarms ---------------------------------------------------------------
 
   async upsertAlarm(alarm) {
@@ -184,6 +347,7 @@ class Engine {
     else this.alarms.push(rec)
     this.alarms.sort((a, b) => a.time.localeCompare(b.time))
     await db.put('alarms', rec)
+    await this._syncNativeSchedule()
     this._emit()
     return rec
   }
@@ -193,6 +357,7 @@ class Engine {
     if (!a) return
     a.enabled = enabled
     await db.put('alarms', { ...a })
+    await this._syncNativeSchedule()
     this._emit()
   }
 
@@ -200,6 +365,8 @@ class Engine {
     this.cancelTrials(id)
     this.alarms = this.alarms.filter((a) => a.id !== id)
     await db.del('alarms', id)
+    if (native.available) void native.cancelAlarm(id)
+    await this._syncNativeSchedule()
     this._emit()
   }
 
@@ -208,7 +375,20 @@ class Engine {
     alarmSound.enabled = this.settings.soundOn
     alarmSound.vibrate = this.settings.vibrateOn
     await this._saveSettings()
+    await this._syncNativeSchedule()
     this._emit()
+  }
+
+  /**
+   * Push the JS schedule into AlarmManager. Native alarms are what make the app
+   * a real alarm clock: the WebView's setTimeout only runs while the process is
+   * alive, and "I'll just close the app" is the single most common way an alarm
+   * app fails at 07:00.
+   */
+  async _syncNativeSchedule() {
+    if (!native.available) return
+    for (const a of this.alarms) void native.cancelAlarm(a.id)
+    void native.rescheduleAll(this.alarms, this.settings)
   }
 
   // -- the loop -------------------------------------------------------------
@@ -227,7 +407,7 @@ class Engine {
     if (ep.phase === PHASE.RINGING) {
       // continuous buzz until ringDeadlineAt, then escalating nag bursts
       if (now > ep.ringDeadlineAt) {
-        const quiet = logic.adminActive(this.settings) && this.settings.adminQuietRing
+        const quiet = (logic.adminActive(this.settings) && this.settings.adminQuietRing) || native.available
         if (this.settings.escalationNagAfterRing && !quiet && now - this._nagAt > this._nagInterval()) {
           this._nagAt = now
           alarmSound.pulse({ duration: 2.2, freq: 1046 })
@@ -303,6 +483,14 @@ class Engine {
 
   _beginRinging() {
     const quiet = logic.adminActive(this.settings) && this.settings.adminQuietRing
+    if (native.available) {
+      // The foreground service owns audio+vibration while the app is backgrounded
+      // or the tab is frozen. Starting it again while it is already ringing is a
+      // no-op by design, so a catch-up launch and a live tick cannot double up.
+      if (!quiet) void native.startRing(this.episode?.label ?? 'Wake up')
+      acquireWakeLock()
+      return
+    }
     alarmSound.enabled = this.settings.soundOn && !quiet
     alarmSound.vibrate = this.settings.vibrateOn && !quiet
     alarmSound.start(this.episode?.profile ?? 'siren')
@@ -322,6 +510,7 @@ class Engine {
     const ep = this.episode
     if (!ep || (ep.phase !== PHASE.RINGING && ep.phase !== PHASE.MISSION)) return
     ep.phase = PHASE.MISSION
+    if (!native.available) alarmSound.stop() // native keeps buzzing through the mission
     ep.acceptedAt = ep.acceptedAt ?? Date.now()
     ep.startedMissionAt = ep.startedMissionAt ?? Date.now()
     // A 'choose' alarm stays mode-less until the user picks — defaulting here
@@ -439,6 +628,10 @@ class Engine {
     ep.outcome = 'woke'
     ep.clearAt = Date.now() + (this.settings.demoTiming ? 6000 : 12_000)
     alarmSound.stop()
+    if (native.available) {
+      void native.stopRing()
+      void native.acknowledge(ep.alarmId)
+    }
     releaseWakeLock()
     exitFullscreen()
     await this._logEvent({
@@ -479,7 +672,7 @@ class Engine {
     ep.strike = strikes
     ep.lockMinutes = minutes
     ep.lockUntil = restored ? Math.max(ep.lockUntil ?? 0, Date.now() + minutes * 60_000) : Date.now() + minutes * 60_000
-    if (!restored) {
+    if (!restored && !ep.reason) {
       ep.reason =
         ep.acceptedAt == null
           ? 'Never tapped "I\'m awake" — you let it ring out'
@@ -487,6 +680,11 @@ class Engine {
     }
     alarmSound.stop()
     releaseWakeLock()
+    if (native.available) {
+      void native.stopRing()
+      void native.acknowledge(ep.alarmId)
+      void native.engageLock(ep.lockUntil, ep.reason) // the OS pins us, not just the overlay
+    }
     await this._logEvent({
       type: 'locked',
       episodeId: ACTIVE_EPISODE,
@@ -512,6 +710,10 @@ class Engine {
     alarmSound.stop()
     releaseWakeLock()
     exitFullscreen()
+    if (native.available) {
+      void native.stopRing()
+      void native.acknowledge(ep.alarmId)
+    }
     ep.phase = PHASE.SUCCESS
     ep.outcome = 'bypassed'
     ep.clearAt = Date.now() + (this.settings.demoTiming ? 4000 : 8000)
@@ -543,6 +745,7 @@ class Engine {
       served: true,
       restored,
     })
+    if (native.available) void native.releaseLock()
     if (ep.oneShot && ep.alarmId) this._disableAlarm(ep.alarmId)
     this.lastOutcome = { kind: 'released', at: Date.now(), strike: ep.strike, lockMinutes: ep.lockMinutes }
     this.episode = null

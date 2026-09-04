@@ -1,0 +1,16 @@
+{
+  "appId": "com.uporpay.wakeorlock",
+  "appName": "Wake or Lock",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#07080c"
+  },
+  "plugins": {
+    "Camera": {
+      "precision": 0.9
+    }
+  }
+}

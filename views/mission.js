@@ -1,7 +1,8 @@
 import * as logic from '../src/logic.js'
 import { engine, startMotionProbe, motionProbe } from '../src/engine.js'
 import { esc, toast, patchTimers, attachHold } from '../src/ui.js'
-import { openCamera, waitForStream, grabFrame, simulateFrame, cameraReport } from '../src/camera.js'
+import { openCamera, waitForStream, grabFrame, simulateFrame, nativeStill, cameraReport } from '../src/camera.js'
+import { native } from '../src/native.js'
 import { frameDiff } from '../src/verify.js'
 import { currentLocation } from '../src/camera.js'
 import { alarmSound, enterFullscreen, acquireWakeLock } from '../src/audio.js'
@@ -269,6 +270,7 @@ class MissionScreen {
       this.video.classList.toggle('mirror', facing === 'user')
       const ok = await waitForStream(this.video)
       if (!ok) return this.failCamera('Camera stream never started.')
+      this.nativeShutter = false
       this.video.style.display = 'block'
     } catch (err) {
       this.failCamera(
@@ -280,6 +282,17 @@ class MissionScreen {
   }
 
   failCamera(message) {
+    // In the APK a dead WebView preview is not a licence to fake a photo: the
+    // native CameraX shutter still produces real pixels, so take that path and
+    // leave test mode off. Only a browser falls back to simulation.
+    if (native.available) {
+      this.nativeShutter = true
+      this.simulate = false
+      this.video.style.display = 'none'
+      toast(`${esc(message)} Using the app camera for each shot instead.`, '', 5000)
+      this.updatePanels(true)
+      return
+    }
     this.simulate = true
     this.video.style.display = 'none'
     if (!engine.settings.testMode) engine.setSettings({ testMode: true })
@@ -394,22 +407,39 @@ class MissionScreen {
   async capture() {
     const s = engine.settings
     const shutter = this.control.querySelector('#shutter')
-    if (!this.simulate && (!this.video || this.video.readyState < 2)) {
+    if (!this.simulate && !this.nativeShutter && (!this.video || this.video.readyState < 2)) {
       toast('Camera is not ready yet', 'bad')
       return
     }
-    const final = this.simulate
+    if (this.nativeShutter) {
+      toast('Hold still — the app camera is opening…', '', 1200)
+    }
+    let final = this.nativeShutter
+      ? await nativeStill({
+          facing: this.facing,
+          poseOverlay: engine.requiredPoseFor(engine.episode.captures.length)?.pose ?? null,
+        })
+      : null
+    if (final?.error) {
+      shutter?.removeAttribute('disabled')
+      if (final.error !== 'cancelled') toast(`App camera: ${esc(final.error)}`, 'bad')
+      return
+    }
+    final = final ?? (this.simulate
       ? simulateFrame({
           label: this.stepKind() === 'outside-scenery' ? 'outside proof' : 'pose selfie',
           pose: engine.requiredPoseFor(engine.episode.captures.length)?.pose?.label ?? '',
         })
-      : grabFrame(this.video)
+      : grabFrame(this.video))
     const heldFrom = this.holdStart ?? final.imageData
-    const diff = this.simulate ? 0 : frameDiff(heldFrom, final.imageData)
+    // A single native still has no "before" frame to diff against — the shutter
+    // press itself is the hold — so skip the steadiness comparison, not the pose.
+    const diff = this.simulate || this.nativeShutter ? 0 : frameDiff(heldFrom, final.imageData)
     this.holdStart = null
 
     shutter?.setAttribute('disabled', 'true')
-    const location = engine.settings.useLocation !== false && this.stepKind() === 'outside-scenery' ? await currentLocation() : null
+    const location =
+      engine.settings.useLocation !== false && this.stepKind() === 'outside-scenery' ? await currentLocation() : null
 
     const result = await engine.submitCapture({
       imageData: final.imageData,

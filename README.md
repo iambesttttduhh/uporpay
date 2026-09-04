@@ -2,7 +2,7 @@
 
 An alarm clock that does not negotiate. It buzzes, you do a mission, and if you don't — your phone is gone for hours. The longer you keep oversleeping, the longer it stays gone.
 
-Built as a phone-first installable web app (PWA). No build step, no framework, no backend — `node serve.js` and it runs.
+Built as a phone-first installable web app (PWA). No build step, no framework, no backend — `node serve.js` and it runs. The same code also ships as a real **Android APK** with native `AlarmManager` alarms, a foreground ring service and a lock-task host: [docs/APK.md](docs/APK.md).
 
 ## The rules
 
@@ -44,7 +44,7 @@ Succeed once and the ladder resets to strike 1. Every strike is a doubling lesso
 
 ```bash
 node serve.js              # → http://localhost:5173
-npm test                   # 50 tests, if you want to see the rules prove themselves
+npm test                   # 58 tests, if you want to see the rules prove themselves
 node serve.js --https      # self-signed cert, minted into ./certs on first run
 ```
 
@@ -63,6 +63,23 @@ The camera, GPS, wake lock and service worker are all **secure-context only**. `
 **Install it:** Chrome/Edge on Android → `⋮` → *Add to Home screen*. It then runs fullscreen, keeps its own window, and reads IndexedDB like an app. Safari/iOS → Share → Add to Home Screen (same caveats as above).
 
 **Before you trust it with a workday:** flip **Settings → Demo timing** off. Otherwise the alarm clock is politely ÷60.
+
+### As an APK (the version that works when the app is closed)
+
+```bash
+npm ci
+node tools/build-www.mjs      # stages www/ (the WebView payload) + the native marker
+npx cap add android           # first time only
+npx cap sync android
+cd android && ./gradlew assembleDebug   # → app/build/outputs/apk/debug/app-debug.apk
+```
+
+You do not have to run any of that if GitHub Actions is enough for you: push, then download
+`wake-or-lock-debug.apk` from the **Android APK** workflow's artifacts (or from the
+`wake-or-lock-debug` release, if you ticked *publish* when running it manually). Full walkthrough,
+permissions, the "why is my alarm not firing on a Xiaomi" checklist and what is still escapable:
+**[docs/APK.md](docs/APK.md)**. Provisioning the device-owner build that removes the escape hatch:
+**[docs/DEVICE_OWNER.md](docs/DEVICE_OWNER.md)**.
 
 ⚠️ One honest warning that has nothing to do with bugs: an app that confiscates your phone at 7 a.m. is a bad idea if your morning has anything in it that needs a phone — a kid, a commute you navigate, a work ping. Turn on *Panic release* in Settings if there's any chance of that, or don't run the native build at all.
 
@@ -88,7 +105,20 @@ views/                home · alarms · mission (ring + capture) · lock · jour
 tests/
   logic.test.mjs      the rules, in isolation
   app.test.mjs        jsdom: fire → accept → capture → pass/fail → lock → release
-docs/NATIVE.md        what has to change to make the lockout actually inescapable
+  boot.test.mjs       the real entrypoint boots clean in jsdom
+  admin.test.mjs      the lease changes engine behaviour, not just the UI
+  native.test.mjs     the Android seam: inert in a browser, correct calls with a fake bridge
+tools/
+  make-icons.mjs      PWA icons, drawn in pure node (no ImageMagick in the sandbox)
+  icon-art.mjs        the artwork itself — one source for PWA icon and launcher icon
+  build-www.mjs       stages www/ for Capacitor and drops the native marker
+  make-android-assets.mjs  launcher/adaptive/splash/notification PNGs into android/res
+capacitor.config.json  appId com.uporpay.wakeorlock, webDir www
+android/               the real Gradle project (Java, no Kotlin) — see docs/APK.md
+.github/workflows/android-apk.yml   builds the APK on Actions and publishes it as a release asset
+docs/NATIVE.md          what has to change to make the lockout actually inescapable (design map)
+docs/APK.md             building, installing and configuring the APK
+docs/DEVICE_OWNER.md    provisioning the version with no exit button
 ```
 
 Verification is deliberately transparent: every check returns `{ ok, label, reasons[] }` and the reasons are printed on screen, so a rejection tells you *why* ("sky 0%, green 2%", "held 0.9 s, needed 1.5 s") instead of gaslighting you at 7 a.m.
@@ -114,14 +144,14 @@ Three design decisions worth knowing:
 
 - **It expires.** The lease defaults to 240 minutes, then the app punishes you again. "Never expire" exists, and the UI calls you out for choosing it — otherwise you'd wake up next Tuesday to an alarm clock you quietly neutered.
 - **Every admin action is journaled** (`bypass`, `admin_on`, `admin_abort`, `admin_config`, and wrong-PIN attempts), so a test run can never be mistaken for a clean streak. Bypasses do not move the ladder in either direction.
-- **It is a guardrail, not security.** Anyone holding the phone can read the PIN out of IndexedDB; a web app has no keychain and no server to check against. On the native build this becomes Keystore + BiometricPrompt (`docs/NATIVE.md`).
+- **It is a guardrail, not security.** Anyone holding the phone can read the PIN out of IndexedDB; a web app has no keychain and no server to check against. The APK keeps it exactly as weak — Keystore + BiometricPrompt is designed in `docs/NATIVE.md` but not implemented, so do not treat the PIN as a lock on anybody else.
 
-## Honest limits of a browser build
+## Honest limits
 
-This is a faithful prototype, not a hard lock. Read these before you trust it with your job:
+Read these before you trust it with your job. Items 1–2 are fixed by the APK; items 3–5 apply to both builds.
 
-1. **A page cannot lock the OS.** The lockout covers the browser window; you can close the tab, or clear site data, and the record is gone. Real inescapability needs Android Device Owner + `setLockTask` + `DISABLE_KEYGUARD` — see `docs/NATIVE.md`.
-2. **Alarms only fire while the app is alive.** Chrome throttles background timers; there is no web API for an exact scheduled wake-up. Native `AlarmManager.setAlarmClock` is the fix. A browser can approximate it only if the tab/PWA stays open with the screen on (which is why the ring screen holds a wake lock).
+1. **A page cannot lock the OS.** The browser lockout covers the window; you can close the tab, or clear site data, and the record is gone. The APK fixes the *covering* part with `startLockTask()`, but a side-loaded app always keeps Android's "Unpin" affordance — only `adb shell dpm set-device-owner` removes it ([docs/DEVICE_OWNER.md](docs/DEVICE_OWNER.md)).
+2. **In a browser, alarms only fire while the app is alive.** Chrome throttles background timers; there is no web API for an exact scheduled wake-up. The APK uses `AlarmManager.setAlarmClock` + a foreground service, which is the whole reason to install it. A browser can approximate it only if the tab/PWA stays open with the screen on (which is why the ring screen holds a wake lock).
 3. **iOS Safari** gives no vibration API, no geolocation background access, and kills web audio unless the tab is foregrounded. Fine for testing the flow, unreliable as an actual alarm clock.
 4. **`testMode` (Test mode in Settings) relaxes the pose, movement and outdoors checks** so the loop is drivable from a laptop or an iframe with no camera. Every shot taken in that mode is flagged `simulated` in your journal, and if you want the honest version: turn it off and test on a phone.
 5. **`Panic release` is off by default.** Turning it on adds a 5-second hold on the lock screen that frees you — and logs a strike against you, because "I needed my phone" and "I wanted my phone" look identical at 7 a.m. Turn it on if you have kids, a medical need, or a job that cannot wait an hour.

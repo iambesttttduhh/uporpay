@@ -224,7 +224,9 @@ function traps() {
   })
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') engine.tick()
+    // resume(), not tick(): in the APK an alarm can go off while the WebView is
+    // suspended, and the receipt for that lives on the Android side.
+    if (document.visibilityState === 'visible') engine.resume()
   })
 
   document.addEventListener('keydown', (e) => {

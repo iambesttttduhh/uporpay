@@ -1,16 +1,27 @@
 import * as logic from '../src/logic.js'
 import { engine } from '../src/engine.js'
 import { esc, toast, confirmSheet, openSheet } from '../src/ui.js'
+
 import { alarmSound } from '../src/audio.js'
 import { cameraReport, currentLocation } from '../src/camera.js'
+import { native, nativeInfo } from '../src/native.js'
 
 // ---------------------------------------------------------------------------
 // Settings — every knob that decides how bad your morning is, plus the honest
 // limitations panel. Nothing here can shorten a lockout in progress.
 // ---------------------------------------------------------------------------
 
+// A deliberate refresh hook: settings does not auto-re-render (a re-render would
+// drop your thumb mid-slider), so the native panel re-renders only when we say so.
+let nativeStamp = 0
+function bumpNative() {
+  nativeStamp += 1
+  engine._emit()
+}
+
 export function render(state) {
   const s = state.settings
+  const info = nativeInfo()
   const n = (label, key, value, min, max, step, unit, hint) => `
     <div class="field" style="margin-bottom:13px">
       <label>${label}</label>
@@ -101,12 +112,39 @@ export function render(state) {
     </div>
   </div>
 
+  <div class="section-title">Android engine</div>
+  <div class="card">
+    ${
+      info.available
+        ? `<div class="checks">
+             ${[
+               ['AlarmManager exact alarm', info.status?.exactAlarmsAllowed !== false, 'setAlarmClock — survives Doze'],
+               ['Full-screen wake', true, 'lights the lock screen without unlocking it'],
+               ['Foreground ring service', true, 'audio + vibration owned by the OS, not the WebView'],
+               ['Boot / update restore', true, 're-arms every schedule, records anything that fired while dead'],
+               ['Lock enforcement', info.status?.deviceOwner ? 'device owner' : 'lock task (best effort)', info.status?.deviceOwner ? 'Home/Recents suppressed for real' : 'side-loaded: needs screen pinning or Device Owner to be inescapable'],
+               ['Notifications', info.status?.notificationsGranted !== false, 'the alarm still shows if the app is backgrounded'],
+             ]
+               .map(([label, ok, hint]) => `<div class="check ${ok ? 'pass' : 'fail'}"><div>${ok === 'device owner' || ok === true ? '✅' : '⚠️'}</div><div class="grow"><b>${esc(label)}</b><div class="tiny muted">${esc(String(hint))}</div></div></div>`)
+               .join('')}
+           </div>
+           <div class="btn-grid" style="margin-top:12px">
+             <button class="btn" data-native-notify>🔔 Allow alerts</button>
+             <button class="btn" data-native-alarm>⏰ Exact-alarm access</button>
+             <button class="btn" data-native-battery>🔋 Unrestricted battery</button>
+             <button class="btn" data-native-recheck>↻ Re-check</button>
+           </div>
+           <div class="tiny muted" style="margin-top:9px">Battery optimisation is the usual reason a 07:00 alarm does not fire on Chinese ROMs. Nothing in this app can turn it off for you — Android requires a tap in system settings.</div>`
+        : `<div class="note">You are in the <b>browser build</b>: alarms are JS timers, and closing the tab cancels them. <code>docs/APK.md</code> builds the same code into an installable <code>.apk</code> with real <code>AlarmManager</code> scheduling, a foreground ring service and a lock-task host.</div>`
+    }
+  </div>
+
   <div class="section-title">What this build cannot do</div>
   <div class="card">
     <div class="rules">
       <div class="rule"><div class="n"></div><div>A browser cannot lock the operating system. This screen covers your whole window, keeps the screen awake, and swallows the back button — but <b>you can still close the tab</b>.</div></div>
       <div class="rule"><div class="n"></div><div>Clearing site data erases the lockout record. The native build in <b>docs/NATIVE.md</b> (Device Owner + lock task) closes that hole; that is the only way "normal calls still work, nothing else does" is actually true.</div></div>
-      <div class="rule"><div class="n"></div><div>Alarms only fire while this tab is alive (installed PWA with the screen on, or the tab in the foreground). Background timer throttling is why a real alarm clock needs a native <b>AlarmManager</b>.</div></div>
+      <div class="rule"><div class="n"></div><div>${native.available ? 'In the APK, alarms are real <b>AlarmManager</b> clocks and the ring runs in a foreground service, so they fire with the app closed. What the APK still cannot do is force the OS to keep the screen pinned unless it was provisioned as <b>device owner</b>.' : 'Alarms only fire while this tab is alive (installed PWA with the screen on, or the tab in the foreground). Background timer throttling is why a real alarm clock needs a native <b>AlarmManager</b> — see <b>docs/APK.md</b>.'}</div></div>
       <div class="rule"><div class="n"></div><div>Pose verification is heuristics (frame-diff steadiness, skin/edge signature), not real keypoint ML. The verifier seam in <b>src/verify.js</b> is where MediaPipe drops in.</div></div>
     </div>
   </div>
@@ -115,6 +153,20 @@ export function render(state) {
 
 export function mount(root) {
   root.addEventListener('click', async (e) => {
+    if (e.target.closest('[data-native-notify]')) {
+      const r = await native.requestNotifications()
+      toast(r?.granted === false ? 'Still denied — allow it in system settings' : 'Alerts allowed', r?.granted === false ? 'bad' : 'good')
+      return bumpNative()
+    }
+    if (e.target.closest('[data-native-alarm]')) return void native.openAlarmSettings()
+    if (e.target.closest('[data-native-battery]')) return void native.openBatterySettings()
+    if (e.target.closest('[data-native-recheck]')) {
+      await native.refresh()
+      if (native.available) await engine.resume()
+      toast(native.available ? 'Native engine live — AlarmManager owns your alarms' : 'No native bridge — browser fallback', native.available ? 'good' : '')
+      return bumpNative()
+    }
+
     const bool = e.target.closest('[data-bool]')
     if (bool) {
       // The settings screen never auto-re-renders (it would fight your finger
@@ -227,7 +279,7 @@ export function mount(root) {
 
 /** Settings never auto-re-render: it owns its own DOM while you drag. */
 export function signature() {
-  return 'settings'
+  return `settings:${nativeInfo().available ? 1 : 0}:${nativeStamp}`
 }
 
 async function dataSheet() {

@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// camera.js — live-only capture.
+// camera.js — live capture, from the browser stream or the APK's own camera.
 //
 // The anti-cheat principle: there is no file input anywhere in the mission
 // flow. A shot only exists if it was drawn from a live getUserMedia stream in
@@ -7,6 +7,8 @@
 // In `testMode` we additionally allow a synthetic shot so the whole loop is
 // demoable in environments where the camera is blocked (e.g. an iframe).
 // ---------------------------------------------------------------------------
+
+import { native } from './native.js'
 
 const CAPTURE_MAX_W = 1280
 const CAPTURE_QUALITY = 0.72
@@ -115,6 +117,79 @@ export function grabFrame(video) {
  * user has explicitly opted into test mode. It stamps the frame with the pose
  * and clock so screenshots of it are still evidence in the history log.
  */
+/**
+ * The APK's fallback shutter: CameraX takes the still, we composite it onto the
+ * same capture canvas so the verifier sees the same pixel geometry as a live
+ * frame. Returns null on a cancel (that is not an error — you are still holding
+ * the mission), or on any native failure so the caller can fall through.
+ *
+ * Note what this path cannot do: there is no continuous preview, so the hold
+ * steadiness check has no baseline to compare against. The pose, subject and
+ * outdoors checks still run on real pixels, and the 10-minute spacing rule —
+ * the part that actually keeps you out of bed — is enforced by the clock, not
+ * by the frame.
+ */
+export async function nativeStill({ facing = 'user', poseOverlay = null } = {}) {
+  const shot = await native.capturePhoto({ facing })
+  if (!shot?.ok) return { error: shot?.error ?? 'camera-failed' }
+  const img = await decodeImage(shot.dataUrl)
+  if (!img) return { error: 'decode-failed' }
+  const scale = Math.min(1, CAPTURE_MAX_W / (img.naturalWidth || CAPTURE_MAX_W))
+  const w = Math.max(16, Math.round((img.naturalWidth || CAPTURE_MAX_W) * scale))
+  const h = Math.max(16, Math.round((img.naturalHeight || (w * 3) / 4) * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  // Cover-crop, exactly like the live preview, so the pose guide and the pixels
+  // describe the same framing.
+  const sw = img.naturalWidth || w
+  const sh = img.naturalHeight || h
+  const k = Math.max(w / sw, h / sh)
+  const dw = sw * k
+  const dh = sh * k
+  if (facing === 'user') {
+    ctx.translate(w, 0)
+    ctx.scale(-1, 1)
+  }
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh)
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  if (poseOverlay?.path) drawPoseGuide(ctx, poseOverlay, w, h)
+  return {
+    dataUrl: canvas.toDataURL('image/jpeg', CAPTURE_QUALITY),
+    imageData: ctx.getImageData(0, 0, w, h),
+    width: w,
+    height: h,
+    live: true,
+    source: 'native-camera',
+    exif: shot.exif ?? null,
+  }
+}
+
+function decodeImage(src) {
+  return new Promise((resolve) => {
+    const img = new globalThis.Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+}
+
+/** Stick-figure guide for stills (the live path draws it on the preview instead). */
+function drawPoseGuide(ctx, pose, w, h) {
+  ctx.save()
+  ctx.strokeStyle = 'rgba(120,255,190,0.75)'
+  ctx.lineWidth = Math.max(2, w / 240)
+  ctx.setLineDash([w / 60, w / 90])
+  for (const seg of pose.path ?? []) {
+    ctx.beginPath()
+    ctx.moveTo(seg[0] * w, seg[1] * h)
+    ctx.lineTo(seg[2] * w, seg[3] * h)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
 export function simulateFrame({ label = 'SIMULATED', pose = '', w = 640, h = 480 }) {
   const canvas = document.createElement('canvas')
   canvas.width = w
@@ -214,6 +289,12 @@ export const motionProbe = new MotionProbe()
 
 export function currentLocation({ timeoutMs = 6000, highAccuracy = true } = {}) {
   return new Promise((resolve) => {
+    // In the APK the GPS fix comes from the OS location client, which works with
+    // the screen off and the app backgrounded; navigator.geolocation does not.
+    if (native.available) {
+      native.position({ timeoutMs }).then((fix) => resolve(fix && Number.isFinite(fix.lat) ? fix : null))
+      return
+    }
     if (!navigator.geolocation) return resolve(null)
     const t = setTimeout(() => resolve(null), timeoutMs + 800)
     navigator.geolocation.getCurrentPosition(

@@ -1,0 +1,150 @@
+name: Android APK
+
+# This workflow is the build machine. The sandbox this project was written in has
+# no JDK and no route to Google's Maven or Gradle repositories, so the APK cannot
+# be compiled here — GitHub's runner can, and its artifact storage is reachable
+# from a browser, which is what "give me an APK" actually needs.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Also attach the APK to the rolling wake-or-lock-debug release'
+        type: boolean
+        default: false
+  push:
+    branches:
+      - arena/01a06c90-uporpay
+      - main
+    # A v* tag builds the APK *and* publishes it to the rolling release, which is
+    # the durable download link. Note workflow_dispatch only works from the default
+    # branch on GitHub, so push is the trigger that matters on a feature branch.
+    tags:
+      - 'v*'
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'views/**'
+      - 'index.html'
+      - 'styles.css'
+      - 'sw.js'
+      - 'manifest.webmanifest'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tools/**'
+      - '.github/workflows/android-apk.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'tools/**'
+      - 'capacitor.config.json'
+      - 'package*.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      # AGP 8.2 wants a JDK 17 toolchain; Gradle 8.2.1 will not run on 8.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install SDK platform
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms"
+
+      - name: Install web dependencies
+        run: npm ci
+
+      # Cheap gate before a multi-minute Android build: the rules are the product.
+      - name: Run the JS test suite
+        run: node --test tests/*.test.mjs
+
+      - name: Stage www/ (the WebView payload)
+        run: node tools/build-www.mjs
+
+      - name: Regenerate launcher and splash art
+        run: node tools/make-android-assets.mjs
+
+      - name: Capacitor sync
+        run: npx cap sync android
+
+      - name: Assemble debug APK
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Collect
+        id: collect
+        run: |
+          set -euo pipefail
+          src=android/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$src"
+          cp "$src" wake-or-lock-debug.apk
+          {
+            echo "### wake-or-lock-debug.apk"
+            echo
+            echo "- size: $(du -h wake-or-lock-debug.apk | cut -f1)"
+            echo "- sha256: $(sha256sum wake-or-lock-debug.apk | cut -d' ' -f1)"
+            echo "- commit: \`${GITHUB_SHA::7}\`"
+            echo "- debug-signed: install over any previous build of the same signature"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wake-or-lock-debug-apk
+          path: wake-or-lock-debug.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish to the rolling release
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish) || startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'MD'
+          Debug build, built by `.github/workflows/android-apk.yml`.
+
+          ```
+          adb install -r wake-or-lock-debug.apk
+          ```
+
+          or download and open it on the phone (allow "install unknown apps" for
+          your browser). Then in the app: Settings → Android engine → Allow
+          alerts, Exact-alarm access, Unrestricted battery.
+
+          A side-loaded app cannot confine your phone by itself: the lock screen
+          is real but Android still lets you unpin or force-stop it. For a lock
+          you genuinely cannot escape, provision it as device owner over adb —
+          see `docs/DEVICE_OWNER.md` in the repo.
+          MD
+          if ! gh release view wake-or-lock-debug >/dev/null 2>&1; then
+            gh release create wake-or-lock-debug --title 'Wake or Lock — debug APK' --notes-file notes.md --prerelease --target "$GITHUB_SHA"
+          fi
+          gh release edit wake-or-lock-debug --notes-file notes.md --target "$GITHUB_SHA" || true
+          gh release upload wake-or-lock-debug wake-or-lock-debug.apk --clobber

@@ -1,5 +1,11 @@
 # Making the lockout actually inescapable
 
+> This page is the design map, and it is now implemented: see
+> [`APK.md`](APK.md) for the buildable Capacitor project (`android/app/src/main/java/…`,
+> hand-written Java) and [`DEVICE_OWNER.md`](DEVICE_OWNER.md) for the provisioning step that
+> removes the escape hatch. The snippets below stay in Kotlin because that is what the APIs
+> look like in the docs; the shipped code is Java for the same calls.
+
 The web build proves the *rules* (mission → verification → escalating lockout) and the
 *interaction design* (no dismiss, hold-to-capture, spaced photos). Two things it cannot do,
 by construction of the platform:
@@ -23,9 +29,11 @@ am.setAlarmClock(
 - `Manifest`: `SCHEDULE_EXACT_ALARM` (or `USE_EXACT_ALARM` for alarm-clock apps, which
   Android grants without a settings dance — this app legitimately qualifies).
 - `BOOT_COMPLETED` + `MY_TIME_ZONE_CHANGED`/`TIME_SET` receivers to re-arm every stored alarm.
-- The ring is a **foreground service** (`foregroundServiceType="specialUse"`, subtype
-  `alarm-clock`), with `setShowWhenLocked(true)`,
-  `setTurnScreenOn(true)`, and a full-screen intent notification. That is what lets it
+- The ring is a **foreground service**. Play would prefer `foregroundServiceType="specialUse"` with
+  the `alarm-clock` subtype justified at upload time; the shipped side-loaded build uses
+  `mediaPlayback`, the type an audio-playing service can actually run under without store review.
+  Either way: `setShowWhenLocked(true)`, `setTurnScreenOn(true)`, and a full-screen intent
+  notification. That is what lets it
   light the screen and blast audio while the phone is in your pocket, locked, at 07:00:00.
 
 The web equivalent (`setTimeout` + a live tab + `navigator.wakeLock`) is only good enough to

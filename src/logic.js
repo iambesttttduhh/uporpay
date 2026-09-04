@@ -59,6 +59,11 @@ export const DEFAULT_SETTINGS = {
   panicReleaseEnabled: false, // hold-to-release button on the lock screen
   panicReleaseCostsStrike: true,
 
+  // --- native (APK) behaviour ----------------------------------------------
+  // An alarm that fired while the app was closed still costs you the lockout.
+  // Turn this off if you would rather a missed-but-unwitnessed alarm be forgiven.
+  lockOnMissedWhileClosed: true,
+
   // --- demo mode: divide every mission timer by 60 so you can try the loop
   demoTiming: true,
   testMode: false, // short lock durations (minutes instead of hours)
