@@ -66,6 +66,18 @@ The camera, GPS, wake lock and service worker are all **secure-context only**. `
 
 ### As an APK (the version that works when the app is closed)
 
+**Download the current build:** [wake-or-lock-debug.apk (6.8 MB, debug-signed)](https://github.com/iambesttttduhh/uporpay/releases/download/wake-or-lock-debug/wake-or-lock-debug.apk)
+— published by CI from the latest `android/` in this repo. You need to be signed in to GitHub
+(the repo is private). Install it directly, or over USB with `adb install -r`.
+
+What is inside it: `AlarmManager.setAlarmClock` wake-ups that fire with the app killed, a
+foreground ring service on the alarm audio stream, a full-screen alarm UI over a locked screen,
+boot/update re-arming, a strike record in `SharedPreferences`, and `startLockTask()` confinement
+that only a device-owner provisioning can make truly inescapable. See
+[docs/APK.md](docs/APK.md) for the permission checklist and [docs/DEVICE_OWNER.md](docs/DEVICE_OWNER.md)
+for the hard version.
+
+
 ```bash
 npm ci
 node tools/build-www.mjs      # stages www/ (the WebView payload) + the native marker

@@ -13,7 +13,26 @@ small hand-written Java layer owns the four things a browser cannot do:
 Plus the punishment: `LockGuard` keeps the lockout deadline in prefs, re-applies it on every
 launch (including a launch after a reboot), and calls `startLockTask()`.
 
+## Download
+
+A prebuilt debug APK is published by CI to a rolling prerelease:
+
+**[`wake-or-lock-debug.apk`](https://github.com/iambesttttduhh/uporpay/releases/download/wake-or-lock-debug/wake-or-lock-debug.apk)** — 6.8 MB, `minSdk 22`, `targetSdk 34`, debug-signed.
+`v*` tags and the manual *publish* input both refresh it; the artifact of every individual run is
+also kept for 90 days under **Actions → Android APK → the run → Artifacts**.
+
+Because it is debug-signed with the Android debug key, every build installs over the previous one
+and keeps your strike history. If you would rather have your own signature, build a release APK
+(instructions below) — but then do not lose the keystore, because uninstalling is the only way to
+switch signatures, and uninstalling clears the record that makes the punishment stick.
+
 ## Build it
+
+> Status of the real build: `v0.2.0` compiles on GitHub's runner and ships a **5.6 MB
+> `wake-or-lock-debug.apk`** (debug-signed, minSdk 22 / target 34). It is assembled from
+> `android/` as committed here — nothing is downloaded or patched at build time except Gradle
+> itself. An APK built this way is installable and its alarms are real; what it cannot do is
+> escape Android's Unpin affordance (next section).
 
 The sandbox this project was written in has no JDK and no route to Google's Maven, so builds
 happen on GitHub's runner:
@@ -25,6 +44,19 @@ happen on GitHub's runner:
 3. For a link that survives forever, run the workflow manually with **"Also attach the APK to the
    rolling wake-or-lock-debug release"** ticked, and the artifact is uploaded to the
    `wake-or-lock-debug` prerelease on the Releases page.
+
+If a run goes red, the errors are still readable without opening the Actions UI: the workflow
+publishes an **`APK build digest`** check run on the failing commit, containing the extracted
+`javac`/Gradle errors. Read it with
+
+```bash
+gh api "repos/$GITHUB_REPOSITORY/commits/<sha>/check-runs" \
+  --jq '.check_runs[] | select(.name=="APK build digest") | .output.text'
+```
+
+That step exists because the Actions *log* host is not reachable from every network (including
+the one this project was written in), while `api.github.com` is. The first run of this workflow
+failed on exactly that: two `javac` errors, surfaced as a check run, fixed in one commit.
 
 Locally, on any machine with a JDK 17 and the Android SDK:
 

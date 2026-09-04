@@ -47,7 +47,11 @@ Everything stays on the device: no server, no accounts, no analytics.
 Full write-up: README.md
 
 WANT THE ANDROID APK?
-  The build runs on GitHub Actions: push this folder to a repo, then
+  Prebuilt (debug-signed, 6.8 MB) — needs you signed in to GitHub because the
+  repo is private:
+      https://github.com/iambesttttduhh/uporpay/releases/download/wake-or-lock-debug/wake-or-lock-debug.apk
+
+  Rebuild it yourself on GitHub Actions: push this folder to a repo, then
   Actions -> "Android APK" -> Run workflow. Download wake-or-lock-debug.apk from
   the run's Artifacts and install it (allow "install unknown apps").
   Building locally needs a JDK 17 + Android SDK:
