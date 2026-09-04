@@ -54,7 +54,7 @@ public final class AlarmScheduler {
         if (am == null) return false;
         PendingIntent pi = intent(c, id, at, label, mode);
         AlarmStore.put(c, id, at, label, mode);
-        if (canScheduleExact(c)) {
+        if (canScheduleExact(c) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {
                 am.setAlarmClock(new AlarmManager.AlarmClockInfo(at, pi), pi);
                 return true;

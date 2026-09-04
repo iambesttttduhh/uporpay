@@ -43,6 +43,11 @@ on:
 
 permissions:
   contents: write
+  # The failure digest below is posted as a check run. This exists because Actions
+  # log *content* lives on results-receiver/objects hosts, which some networks
+  # cannot reach — the digest is readable through the ordinary API, so a broken
+  # build is still diagnosable from anywhere `gh api` works.
+  checks: write
 
 concurrency:
   group: apk-${{ github.ref }}
@@ -96,7 +101,36 @@ jobs:
         working-directory: android
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace assembleDebug
+          set +e
+          ./gradlew --no-daemon --stacktrace assembleDebug 2>&1 | tee /tmp/gradle.log
+          status=${PIPESTATUS[0]}
+          exit $status
+
+      - name: Publish a readable failure digest
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo '```'
+            grep -nE "^e: |error:|FAILURE:|What went wrong|Caused by:|Execution failed for|Unresolved|符号|> Task .* FAILED" -A 5 /tmp/gradle.log | tail -140
+            echo '--- tail ---'
+            tail -50 /tmp/gradle.log
+            echo '```'
+          } > digest.md
+          wc -c digest.md
+          jq -Rs --arg sha "$GITHUB_SHA" '{
+            name: "APK build digest",
+            head_sha: $sha,
+            status: "completed",
+            conclusion: "failure",
+            output: {
+              title: "Android build failed — error digest (readable without log access)",
+              summary: "Compiler and Gradle errors extracted from the build log.",
+              text: .
+            }
+          }' digest.md > digest.json
+          gh api -X POST "repos/$GITHUB_REPOSITORY/check-runs" --input digest.json --jq '.html_url' || echo "digest publish failed"
 
       - name: Collect
         id: collect
