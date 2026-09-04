@@ -50,6 +50,7 @@ const MIME = {
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
   '.pem': 'text/plain; charset=utf-8',
+  '.zip': 'application/zip',
 }
 
 // Camera + geolocation need an explicit permissions policy; without this an
@@ -86,7 +87,13 @@ async function handler(req, res) {
       res.writeHead(304, HEADERS).end()
       return
     }
-    res.writeHead(200, { ...HEADERS, 'Content-Type': type, ETag: `"${hash}"`, 'Content-Length': body.length })
+    const heads = { ...HEADERS, 'Content-Type': type, ETag: `"${hash}"`, 'Content-Length': body.length }
+    // Archives are served as downloads; without this some browsers try to open
+    // the zip inline and the "link" looks broken.
+    if (path.endsWith('.zip')) {
+      heads['Content-Disposition'] = `attachment; filename="${path.slice(1).replace(/"[^"]*$/, '')}"`
+    }
+    res.writeHead(200, heads)
     res.end(body)
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'text/plain' }).end(String(err?.message ?? err))

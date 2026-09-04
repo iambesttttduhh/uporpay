@@ -1,0 +1,47 @@
+Wake or Lock — an alarm clock you cannot dismiss
+================================================
+
+RUN IT (no npm install — zero runtime dependencies)
+
+    node -v          # need v18+; if missing: nodejs.org
+    cd uporpay       # into this folder
+    node serve.js
+
+Then open  http://localhost:5173
+
+    port busy        node serve.js 8080
+    stop server      Ctrl+C
+    run the tests    npm install && npm test      # 50 tests, needs jsdom
+
+
+FIRST THINGS TO CLICK
+
+    1. Admin tab (bottom nav)  ->  PIN: 0000
+       God mode is on: no lockouts while you test.
+    2. Home -> "Ring right now"          the takeover screen. one button. no snooze.
+    3. "I'M AWAKE" -> Stay inside        hold the shutter 1.5s per photo.
+       (In Admin, switch on "Auto-pass" and "Ignore photo spacing" to clear the
+        mission from a laptop webcam in a few seconds.)
+    4. Admin -> "Blow the deadline now"  you get the bypass screen. flip
+       "No lockouts" OFF and repeat to see a real lockout.
+    5. Admin -> "Preview lock 30 s"      sit in the lockout with no risk.
+    6. Home -> "90-second trial"         the whole loop, hands-free.
+
+
+TWO THINGS TO KNOW
+
+    * Demo timing is ON by default: every duration is divided by 60 (30-min
+      window = 30 s, 1-hour lockout = 1 min). Settings -> Demo timing OFF for
+      the real thing.
+    * A web page cannot lock the operating system. This covers the browser
+      window and won't let you dismiss the alarm inside it - faithful prototype.
+      docs/NATIVE.md maps the version that is truly inescapable (AlarmManager +
+      foreground service + Android Device Owner lock task).
+
+Camera works on http://localhost with no certificate setup. To test on a phone
+over wifi you need https (camera/GPS/wake-lock are secure-context only):
+    node serve.js --https        then open the printed https://<lan-ip>:5173
+or on Android:  adb reverse tcp:5173 tcp:5173  -> http://localhost:5173 on the phone
+
+Everything stays on the device: no server, no accounts, no analytics.
+Full write-up: README.md
