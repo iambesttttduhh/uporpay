@@ -135,7 +135,7 @@ public class RingService extends Service {
         new Thread(new Runnable() {
             @Override public void run() {
                 while (ringing) {
-                    tg.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 600, 150);
+                    tg.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 600);
                     try { Thread.sleep(900); } catch (InterruptedException e) { break; }
                 }
                 tg.release();
