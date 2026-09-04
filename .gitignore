@@ -1,0 +1,9 @@
+node_modules/
+.tmp/
+.DS_Store
+*.log
+.vscode/
+.idea/
+# build artifacts, if you ever add a bundler
+dist/
+coverage/

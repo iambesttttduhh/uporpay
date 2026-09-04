@@ -1,0 +1,21 @@
+{
+  "name": "wake-or-lock",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An alarm clock you cannot dismiss: photo missions to get up, escalating phone lockouts if you don't.",
+  "scripts": {
+    "start": "node serve.js 5173",
+    "dev": "node serve.js 5173",
+    "test": "node --test tests/*.test.mjs",
+    "icons": "node tools/make-icons.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.0",
+    "playwright": "^1.62.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
