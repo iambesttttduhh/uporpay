@@ -51,6 +51,9 @@ const MIME = {
   '.md': 'text/markdown; charset=utf-8',
   '.pem': 'text/plain; charset=utf-8',
   '.zip': 'application/zip',
+  // An APK served as text/plain is a broken "link"; phones want the package
+  // mime type plus an explicit download disposition.
+  '.apk': 'application/vnd.android.package-archive',
 }
 
 // Camera + geolocation need an explicit permissions policy; without this an
@@ -88,9 +91,9 @@ async function handler(req, res) {
       return
     }
     const heads = { ...HEADERS, 'Content-Type': type, ETag: `"${hash}"`, 'Content-Length': body.length }
-    // Archives are served as downloads; without this some browsers try to open
-    // the zip inline and the "link" looks broken.
-    if (path.endsWith('.zip')) {
+    // Archives and packages are served as downloads; without this some browsers
+    // try to open the zip inline, or the phone refuses to offer "install".
+    if (path.endsWith('.zip') || path.endsWith('.apk')) {
       heads['Content-Disposition'] = `attachment; filename="${path.slice(1).replace(/"[^"]*$/, '')}"`
     }
     res.writeHead(200, heads)

@@ -20,6 +20,9 @@ android/app/src/main/assets/capacitor.plugins.json
 # Gradle output and any APK you build locally.
 *.apk
 *.aab
+# The one exception: CI ships the last green debug build here, so a plain
+# `git pull` is enough to get an installable APK.
+!builds/*.apk
 *.keystore
 android/keystore.properties
 !android/keystore.properties.example
