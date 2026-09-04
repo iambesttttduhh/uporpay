@@ -26,7 +26,14 @@ const flag = (name, fallback) => {
   return argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true
 }
 const USE_HTTPS = Boolean(flag('https', false))
-const PORT = Number(flag('port', process.env.PORT ?? 5173))
+// Accept `--port 8080` and the bare `node serve.js 8080`, because everyone
+// types the second one at least once and a silently-ignored port is confusing.
+const positionalPort = argv.find((a) => /^\d{2,5}$/.test(a))
+const PORT = Number(flag('port', positionalPort ?? process.env.PORT ?? 5173))
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  console.error('that is not a port number')
+  process.exit(1)
+}
 const HOST = String(flag('host', '0.0.0.0'))
 
 const MIME = {
