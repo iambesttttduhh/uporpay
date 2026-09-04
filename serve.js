@@ -94,7 +94,10 @@ async function handler(req, res) {
     // Archives and packages are served as downloads; without this some browsers
     // try to open the zip inline, or the phone refuses to offer "install".
     if (path.endsWith('.zip') || path.endsWith('.apk')) {
-      heads['Content-Disposition'] = `attachment; filename="${path.slice(1).replace(/"[^"]*$/, '')}"`
+      // basename only: a download named "builds/x.apk" or "dist/app.zip" is how a
+      // phone ends up with a file nobody's installer will open.
+      const leaf = path.split('/').filter(Boolean).pop() ?? 'download'
+      heads['Content-Disposition'] = `attachment; filename="${leaf.replace(/"[^"]*$/, '')}"`
     }
     res.writeHead(200, heads)
     res.end(body)
