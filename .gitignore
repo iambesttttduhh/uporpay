@@ -7,3 +7,4 @@ node_modules/
 # build artifacts, if you ever add a bundler
 dist/
 coverage/
+certs/

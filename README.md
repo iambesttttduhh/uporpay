@@ -40,15 +40,31 @@ Succeed once and the ladder resets to strike 1. Every strike is a doubling lesso
 
 ## Run it
 
+**Requirements:** Node 18+ (that's it — no build step, no dependencies at runtime, `npm install` is only for the test runner's jsdom).
+
 ```bash
-node serve.js 5173          # → http://localhost:5173
-npm test                    # 50 tests: rules engine, headless mission flows, no-way-out invariants, admin lease
-node tools/make-icons.mjs   # regenerate the PNG icons from the SDF drawing code
+node serve.js              # → http://localhost:5173
+npm test                   # 50 tests, if you want to see the rules prove themselves
+node serve.js --https      # self-signed cert, minted into ./certs on first run
 ```
 
-Then on a phone: open it over **https**, `⋮ → Add to Home screen`. Camera, geolocation and the vibration API all need a secure context, which is why `serve.js` sends a `Permissions-Policy` header and refuses nothing else.
+Then press **`⏱ 90-second trial`** on Home. Demo timing is on, so the 30-minute mission window is 30 seconds and a 1-hour lockout is 1 minute — you can see the whole loop, punishment included, before you commit a morning to it.
 
-**Try the loop without waiting a night:** Home → `⏱ 90-second trial`, or `💀 Fail on purpose` to experience the lockout. `Demo timing` (on by default) divides every duration by 60 so a 1-hour lockout takes 1 minute and a 10-minute photo gap takes 10 seconds. Flip it off in Settings and the app is genuinely at your throat again.
+### On a phone (where it stops being a demo)
+
+The camera, GPS, wake lock and service worker are all **secure-context only**. `http://localhost` counts as secure; `http://192.168.1.20:5173` does not — so opening the LAN address on your phone gives you a silent camera denial and no install prompt. Three ways out:
+
+| Method | Command | Notes |
+| --- | --- | --- |
+| **Self-signed https** (any phone) | `node serve.js --https`, open the printed `https://<lan-ip>:5173` | Chrome warns; tap *Advanced → Proceed*. Camera and geolocation then work normally. |
+| **adb reverse** (Android, best) | `adb reverse tcp:5173 tcp:5173` then `http://localhost:5173` *on the phone* | localhost is a trusted origin, so no cert warning, no tap-through, full permissions |
+| **iOS** | `--https`, open it in Safari, tap *Show Details → visit this website* | That works per-load. To stop re-accepting: AirDrop `certs/cert.pem` to the phone, install the profile, then Settings → General → About → Certificate Trust Settings → enable full trust. iOS also gives no vibration API and suspends web audio in a backgrounded tab — fine for testing the loop, unreliable as an actual alarm |
+
+**Install it:** Chrome/Edge on Android → `⋮` → *Add to Home screen*. It then runs fullscreen, keeps its own window, and reads IndexedDB like an app. Safari/iOS → Share → Add to Home Screen (same caveats as above).
+
+**Before you trust it with a workday:** flip **Settings → Demo timing** off. Otherwise the alarm clock is politely ÷60.
+
+⚠️ One honest warning that has nothing to do with bugs: an app that confiscates your phone at 7 a.m. is a bad idea if your morning has anything in it that needs a phone — a kid, a commute you navigate, a work ping. Turn on *Panic release* in Settings if there's any chance of that, or don't run the native build at all.
 
 ## Layout
 

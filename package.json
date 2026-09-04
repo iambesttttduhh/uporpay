@@ -5,8 +5,10 @@
   "type": "module",
   "description": "An alarm clock you cannot dismiss: photo missions to get up, escalating phone lockouts if you don't.",
   "scripts": {
-    "start": "node serve.js 5173",
-    "dev": "node serve.js 5173",
+    "start": "node serve.js",
+    "dev": "node serve.js",
+    "start:https": "node serve.js --https",
+    "phone": "node serve.js --https --port 5173",
     "test": "node --test tests/*.test.mjs",
     "icons": "node tools/make-icons.mjs"
   },
