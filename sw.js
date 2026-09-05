@@ -1,5 +1,5 @@
 // Precache the shell so the alarm still works on a flaky morning wifi.
-const CACHE = 'wol-v4'  // bump on any module change: the SW is cache-first for app code
+const CACHE = 'wol-v5'  // bump on any module change: the SW is cache-first for app code
 const SHELL = ['/', '/index.html', '/styles.css', '/manifest.webmanifest', '/icons/app.svg']
 const MODULES = [
   '/src/app.js',

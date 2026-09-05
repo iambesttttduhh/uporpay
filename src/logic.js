@@ -212,6 +212,33 @@ export function formatDuration(ms) {
   return `${s} s`
 }
 
+/**
+ * A lockout is a promise about real time, and the wall clock is the one part of
+ * this arrangement you can edit in the notification shade. So the app keeps its
+ * own idea of time and treats a jump as an attempt to skip the punishment.
+ *
+ * `back` is measured against the last stamp the app wrote, which survives a
+ * reboot; `forward` is measured against a monotonic timer, which does not — so
+ * it is only meaningful when both samples come from the same app session.
+ * Returns the time the user appeared to gain, which the engine then adds back
+ * onto whatever they are serving.
+ */
+export const CLOCK_TOLERANCE_MS = 120_000
+
+export function clockSkew({ prevWall, prevMono, wall, mono, sameBoot } = {}, toleranceMs = CLOCK_TOLERANCE_MS) {
+  const out = { back: 0, forward: 0, gained: 0, jumped: false }
+  if (!Number.isFinite(prevWall) || !Number.isFinite(wall)) return out
+  const wallDelta = wall - prevWall
+  if (wallDelta < 0) out.back = -wallDelta
+  if (sameBoot && Number.isFinite(prevMono) && Number.isFinite(mono) && mono >= prevMono) {
+    const real = mono - prevMono
+    if (wallDelta > real) out.forward = wallDelta - real
+  }
+  out.gained = out.back + out.forward
+  out.jumped = out.gained > toleranceMs
+  return out
+}
+
 export function formatAlarmTime(hhmm) {
   const [h, m] = hhmm.split(':').map(Number)
   const ampm = h >= 12 ? 'PM' : 'AM'

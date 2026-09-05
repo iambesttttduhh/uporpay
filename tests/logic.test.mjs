@@ -180,3 +180,31 @@ test('evaluateStep fails closed when any check fails', () => {
   assert.equal(bad.ok, false)
   assert.deepEqual(bad.failures, ['GPS'])
 })
+
+test('the clock is checked against time, not against the clock', () => {
+  const nothing = L.clockSkew({})
+  assert.equal(nothing.jumped, false, 'no previous stamp means nothing to compare')
+
+  // half an hour into the past: exactly the trick a lockout has to survive
+  const back = L.clockSkew({ prevWall: 1_000_000 + 30 * 60_000, wall: 1_000_000 })
+  assert.equal(back.back, 30 * 60_000)
+  assert.equal(back.forward, 0)
+  assert.ok(back.jumped)
+  assert.equal(back.gained, 30 * 60_000)
+
+  // a forward jump is only provable against the monotonic timer, inside one session
+  const small = L.clockSkew({ prevWall: 1_000_000, wall: 1_060_000, prevMono: 1_000, mono: 11_000, sameBoot: true })
+  assert.equal(small.forward, 50_000)
+  assert.equal(small.jumped, false, 'NTP corrections and a laggy timer are not tampering')
+  const big = L.clockSkew({ prevWall: 1_000_000, wall: 1_660_000, prevMono: 1_000, mono: 11_000, sameBoot: true })
+  assert.equal(big.forward, 650_000)
+  assert.ok(big.jumped)
+
+  // after a reboot the monotonic clock restarts, so a long absence is not a jump
+  const reboot = L.clockSkew({ prevWall: 1_000_000, wall: 1_000_000 + 8 * 3_600_000, prevMono: 900_000, mono: 4_000, sameBoot: false })
+  assert.equal(reboot.forward, 0)
+  assert.equal(reboot.jumped, false)
+
+  // timezones and DST move the calendar, never the epoch: nothing to report
+  assert.equal(L.clockSkew({ prevWall: 5_000_000, wall: 5_001_000 }).jumped, false)
+})

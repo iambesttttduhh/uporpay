@@ -350,7 +350,7 @@ async function dataSheet() {
     `<h3>Data on this device</h3>
      <div class="tiny muted" style="line-height:1.6">
        Alarms, strike history and the proof log live in IndexedDB on this phone. Nothing is uploaded — there is no server in this project. No photographs and no audio are stored: a proof is a score, a mic level and a duration.<br/><br/>
-       Deleting the data also deletes your strikes. That is the one honest escape route in this build, and it is why a real version needs the native lock.
+       The last moment this app saw your clock is kept next to it: wind the time back to escape a lockout and the lockout grows by exactly what you took. Deleting the data deletes your strikes with it, though — that is the one honest escape route in this build, and it is why a real version needs the native lock.
      </div>
      <div class="btn-grid" style="margin-top:14px">
        <button class="btn" data-export>⬇ Export log</button>

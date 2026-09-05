@@ -20,6 +20,11 @@ THE RULES, IN ONE BREATH
                                                    and the leash drags the lock
                                                    screen back. Rebooting re-applies
                                                    the remaining time.
+    Set the clock back during a lockout         -> caught against the app's own
+                                                   timer: the time you "saved" is
+                                                   added back onto the lockout, and
+                                                   a rewind during a mission shortens
+                                                   the mission window instead.
     Serve the time                             -> the same alarm is re-armed. You
                                                    still owe that wake-up.
 

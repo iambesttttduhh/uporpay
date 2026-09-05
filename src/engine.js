@@ -24,6 +24,11 @@ import { speechSupport } from './speech.js'
 import { native, detect as detectNative } from './native.js'
 
 const TICK_MS = 400
+const CLOCK_ID = 'clock'
+const CLOCK_SAMPLE_MS = 15_000
+// A monotonic reading only means something next to another reading from the same
+// app session, so stamps carry the session they were taken in.
+const BOOT_ID = logic.uid('boot')
 const ACTIVE_EPISODE = 'active'
 const SETTINGS_ID = 'app'
 const NAG_INTERVAL_MS = 30_000
@@ -59,6 +64,9 @@ class Engine {
     this._started = true
     await db.dbReady
     await this._load()
+    // Before the resumed episode is judged: a lockout that only looks finished
+    // because the clock was wound back must not be released.
+    await this._guardClock({ force: true })
     await detectNative()
     this._resumeEpisode()
     await this._reconcileNative()
@@ -91,18 +99,69 @@ class Engine {
   }
 
   async _load() {
-    const [settings, alarms, events, shots, episode] = await Promise.all([
+    const [settings, alarms, events, shots, episode, clockRow] = await Promise.all([
       db.get('settings', SETTINGS_ID),
       db.getAll('alarms'),
       db.getAll('events'),
       db.getAll('shots'),
       db.get('episodes', ACTIVE_EPISODE),
+      db.get('meta', CLOCK_ID),
     ])
     if (settings) this.settings = { ...logic.DEFAULT_SETTINGS, ...settings }
     this.alarms = alarms.sort((a, b) => a.time.localeCompare(b.time))
     this.events = events.sort((a, b) => a.at - b.at)
     this.shots = shots
     this.episode = episode ?? null
+    // Last moment this app saw the wall clock, from the previous session. Read
+    // during start(), before anything is allowed to decide a lock has expired.
+    this.clockStamp = clockRow ?? null
+    this._clockAt = 0
+  }
+
+  /**
+   * Clock guard. Setting the time backwards is the oldest way out of a punishment,
+   * so the app compares the clock against its own last stamp and against the
+   * monotonic timer: a jump big enough not to be NTP is treated as an escape
+   * attempt and the time it appeared to buy is added back onto the sentence. A
+   * rewind during a mission is taken off the mission deadline too, so moving the
+   * clock never buys you a longer window.
+   */
+  async _guardClock({ force = false } = {}) {
+    const now = Date.now()
+    if (!force && this._clockAt && now - this._clockAt < CLOCK_SAMPLE_MS) return null
+    this._clockAt = now
+    const mono =
+      typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : null
+    const prev = this.clockStamp
+    const sk = logic.clockSkew({
+      prevWall: prev?.wall,
+      prevMono: prev?.mono,
+      wall: now,
+      mono,
+      sameBoot: prev?.bootId === BOOT_ID,
+    })
+    const stamp = { id: CLOCK_ID, wall: now, mono, bootId: BOOT_ID, updatedAt: now }
+    this.clockStamp = stamp
+    await db.put('meta', stamp)
+    if (!sk.jumped) return null
+    const ep = this.episode
+    if (ep) {
+      if (ep.phase === PHASE.LOCKED) ep.lockUntil = (ep.lockUntil ?? now) + sk.gained
+      if (ep.missionDeadlineAt && sk.back > 0) ep.missionDeadlineAt = Math.max(now + 30_000, ep.missionDeadlineAt - sk.back)
+      await this._saveEpisode()
+    }
+    await this._logEvent({
+      type: 'clock',
+      episodeId: ep?.id ?? null,
+      alarmId: ep?.alarmId ?? null,
+      label: ep?.label ?? null,
+      backMs: Math.round(sk.back),
+      forwardMs: Math.round(sk.forward),
+      addedMs: Math.round(sk.gained),
+      lockUntil: ep?.phase === PHASE.LOCKED ? ep.lockUntil : null,
+    })
+    this._emit()
+    return sk
   }
 
   /**
@@ -136,6 +195,7 @@ class Engine {
    * while the WebView was frozen gets picked up; in a browser it is just a tick.
    */
   async resume() {
+    await this._guardClock({ force: true })
     if (native.available) {
       try {
         await this._reconcileNative()
@@ -440,6 +500,7 @@ class Engine {
 
   tick() {
     const now = Date.now()
+    void this._guardClock()
     const ep = this.episode
 
     if (!ep) {
@@ -1147,15 +1208,20 @@ class Engine {
 
   /** Full reset. Only offered on the settings screen, logged before it happens. */
   async resetAll() {
-    await this._logEvent({ type: 'reset', reason: 'User wiped all app data from settings' })
     await db.wipeEverything()
     this.alarms = []
     this.events = []
     this.shots = []
     this.episode = null
+    this.clockStamp = null
     this.settings = { ...logic.DEFAULT_SETTINGS }
     await db.dbReady
     await this._saveSettings()
+    // Logged *after* the wipe, not before it: a journal that is deleted along with
+    // your strikes is not a record. The settings sheet tells the user the reset is
+    // kept on file, and now that sentence is true — the empty journal starts with
+    // the row proving it was emptied.
+    await this._logEvent({ type: 'reset', reason: 'User wiped all app data from settings' })
     this._emit()
   }
 

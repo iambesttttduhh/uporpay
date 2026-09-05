@@ -370,6 +370,42 @@ test('a typed line still has to be the right line', async () => {
   assert.equal(engine.episode.captures.at(-1).channel, 'typed', 'the journal must say how it was proven')
 })
 
+test('winding the clock backwards buys nothing but more time', async () => {
+  await idle()
+  await engine.forceFire({ minutesOut: 0, label: 'Clock test', missionMode: 'inside' })
+  await settle()
+  engine.episode.missionDeadlineAt = Date.now() - 1
+  await settle()
+  assert.equal(engine.episode.phase, 'locked', 'need a live lockout to shorten')
+  const before = engine.episode.lockUntil
+
+  // Pretend the last thing this app saw was half an hour in the future: that is
+  // what a rewound clock looks like from the inside.
+  engine.clockStamp = { id: 'clock', wall: Date.now() + 30 * 60_000, mono: 1_000, bootId: 'a-previous-session' }
+  const sk = await engine._guardClock({ force: true })
+  assert.ok(sk && sk.jumped, 'the jump is noticed')
+  assert.ok(engine.episode.lockUntil >= before + 29 * 60_000, 'the stolen half hour is still owed')
+  const ev = engine.events.filter((e) => e.type === 'clock').pop()
+  assert.ok(ev, 'the attempt is on the record')
+  assert.equal(Math.round(ev.backMs / 60_000), 30)
+  assert.match(views.journal.render(engine.snapshot()), /device clock was moved/)
+
+  // a rewind during a mission must not lengthen the mission either
+  engine.episode.phase = 'mission'
+  engine.episode.missionDeadlineAt = Date.now() + 600_000
+  engine.clockStamp = { ...engine.clockStamp, wall: Date.now() + 10 * 60_000, mono: 1_000, bootId: 'a-previous-session' }
+  const sk2 = await engine._guardClock({ force: true })
+  assert.ok(sk2 && sk2.jumped)
+  assert.ok(engine.episode.missionDeadlineAt < Date.now() + 600_000, 'the window did not grow')
+
+  // the corrected deadline is still the only way out
+  engine.episode.phase = 'locked'
+  engine.episode.lockUntil = Date.now() - 1
+  await settle(4)
+  assert.equal(engine.episode, null, 'serving the time does release it')
+  await idle()
+})
+
 test('the alarm list prints a clock, not markup', async () => {
   await idle()
   const st = engine.snapshot()
@@ -552,5 +588,28 @@ test('episodes are persisted before the transition takes effect', async () => {
   assert.ok(stored, 'active episode must be readable from storage')
   assert.equal(stored.phase, 'ringing')
   assert.equal(stored.missionDeadlineAt > stored.firedAt, true)
+  await idle()
+})
+
+test('wiping the data does not wipe the proof that you wiped it', async () => {
+  await idle()
+  const keep = { ...engine.settings }
+  await engine.upsertAlarm({ time: '06:00', label: 'Wipe me', days: [1], missionMode: 'inside', enabled: true })
+  await engine.adjustStrikes(3)
+  assert.ok(engine.alarms.length >= 1, 'there is something to lose')
+  assert.ok(logic.strikesFromEvents(engine.events) >= 1, 'and there is a ladder to lose')
+
+  await engine.resetAll()
+  await settle()
+  assert.equal(engine.alarms.length, 0)
+  assert.equal(logic.strikesFromEvents(engine.events), 0, 'the ladder really is gone')
+  const reset = engine.events.filter((e) => e.type === 'reset').pop()
+  assert.ok(reset, 'the settings sheet promises the wipe is kept on file')
+  const db = await import('../src/db.js')
+  const stored = await db.getAll('events')
+  assert.ok(stored.some((e) => e.type === 'reset'), 'it survived into storage, not just memory')
+  assert.match(views.journal.render(engine.snapshot()), /wiped/i)
+
+  await engine.setSettings(keep)
   await idle()
 })

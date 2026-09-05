@@ -4,20 +4,19 @@
 // Two things matter here for an app whose whole job is "you cannot escape":
 //   1. the active episode is written synchronously-ish on every transition, so
 //      a refresh or a crash cannot be used to reset a running lockout;
-//   2. captures are stored as JPEG data URLs in the IDB `shots` store rather
-//      than localStorage: a morning's worth of frames blows past the 5 MB
-//      quota there, and evidence that gets evicted is evidence that didn't
-//      happen. They must still be readable after a reload so the journal can
-//      replay them and a rejected shot can stay on the record.
+//   2. nothing a mission produced is kept as an image. `shots` records a score,
+//      a mic level, a duration and which channel proved it — the `meta` store
+//      additionally remembers the last moment the app saw the wall clock, which
+//      is what makes a rewound clock detectable after a reboot.
 // ---------------------------------------------------------------------------
 
 const DB_NAME = 'wake-or-lock'
-const DB_VERSION = 1
-export const STORES = ['alarms', 'episodes', 'events', 'settings', 'shots']
+const DB_VERSION = 2
+export const STORES = ['alarms', 'episodes', 'events', 'settings', 'shots', 'meta']
 
 let idb = null
 let useFallback = false
-const mem = { alarms: new Map(), episodes: new Map(), events: new Map(), settings: new Map(), shots: new Map() }
+const mem = { alarms: new Map(), episodes: new Map(), events: new Map(), settings: new Map(), shots: new Map(), meta: new Map() }
 
 function open() {
   return new Promise((resolve) => {
