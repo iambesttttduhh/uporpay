@@ -551,7 +551,10 @@ hr.sep {
   background:
     radial-gradient(700px 500px at 50% 12%, rgba(255, 59, 48, 0.5), transparent 62%),
     linear-gradient(180deg, #1c0505, #08060a 70%);
-  animation: shake 0.85s ease-in-out infinite;
+  /* Four shakes, then stop. An infinite full-screen transform is the single
+     most expensive thing you can do in a WebView, and it is on screen for the
+     whole five minutes. */
+  animation: shake 0.85s ease-in-out 4;
 }
 
 @keyframes shake {
@@ -875,6 +878,7 @@ hr.sep {
 }
 
 .padlock {
+  position: relative;
   width: 92px;
   height: 92px;
   margin: 18px auto 0;
@@ -884,12 +888,26 @@ hr.sep {
   display: grid;
   place-items: center;
   font-size: 42px;
+}
+
+/* The glow is a composited opacity fade on a cheap radial gradient, not an
+   animated box-shadow: the lock screen is open for *hours*, and a blurred
+   shadow repaint every frame is how a static page starts to feel laggy. */
+.padlock::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border-radius: 34px;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 59, 48, 0.45), transparent 68%);
+  opacity: 0.14;
   animation: breathe 3.4s ease-in-out infinite;
+  will-change: opacity;
+  pointer-events: none;
 }
 
 @keyframes breathe {
-  0%, 100% { box-shadow: 0 0 0 rgba(255, 59, 48, 0); }
-  50% { box-shadow: 0 0 46px rgba(255, 59, 48, 0.5); }
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.5; }
 }
 
 .strikes {
@@ -1454,15 +1472,8 @@ hr.sep {
   font-weight: 700;
   letter-spacing: 0.04em;
 }
-.ring.beat .btn--go { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.4); animation: beat 1s ease-out infinite; }
-@keyframes beat {
-  0% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.42); }
-  70% { box-shadow: 0 0 0 14px rgba(48, 209, 88, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ring.beat .btn--go { animation: none; }
-}
+/* Deliberately no infinite glow on the wake-up button: the countdown and the
+   buzz are enough, and this screen is on top of a live camera preview. */
 
 .warn-strip {
   display: flex; align-items: center; gap: 8px;
