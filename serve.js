@@ -82,6 +82,17 @@ async function handler(req, res) {
       if (info.isDirectory()) throw new Error('dir')
       body = await readFile(file)
     } catch {
+      // Only extension-less paths get the SPA fallback. Handing out index.html for
+      // a missing /wake-or-lock.zip is how a download "succeeds" and then refuses
+      // to open, which is worse than an honest 404.
+      const dot = path.lastIndexOf('.')
+      const ext = dot === -1 ? '' : path.slice(dot + 1)
+      const looksLikeFile = dot > path.lastIndexOf('/') && /^[a-z0-9]{1,8}$/i.test(ext)
+      if (looksLikeFile) {
+        const hint = ext === 'zip' ? '\n\n  build it first:  node tools/make-source-zip.mjs' : ''
+        res.writeHead(404, { ...HEADERS, 'Content-Type': 'text/plain; charset=utf-8' }).end(`404 ${path}${hint}`)
+        return
+      }
       body = await readFile(join(ROOT, 'index.html')) // SPA fallback
       type = MIME['.html']
     }
