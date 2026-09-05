@@ -1558,3 +1558,22 @@ img, video { max-width: 100%; }
   color: var(--dim);
   text-align: center;
 }
+
+/* The no-microphone channel: same sentence, typed, paste refused. */
+.type-box { display: grid; gap: 8px; }
+.type-box textarea {
+  width: 100%;
+  min-height: 76px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  contain: layout style;
+}
+.type-box textarea:focus { outline: none; border-color: rgba(255, 59, 48, 0.55); }
+.tb-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; color: var(--dim); }

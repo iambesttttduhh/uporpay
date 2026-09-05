@@ -58,6 +58,8 @@ export function render(state) {
         ? log
             .map(
               (e) => `<div class="log-row"><b>${esc(e.type)}</b><span>${esc(logic.formatDayShort(e.at))}</span><span>${
+                e.channel ? `<span class="chip sm">${esc(e.channel)}</span> ` : ''
+              }${
                 e.proofs != null ? `${e.proofs} proof${e.proofs === 1 ? '' : 's'}` : e.shots ? `${e.shots} proof(s)` : ''
               }${e.lockMinutes ? ` · ${esc(logic.formatDuration(e.lockMinutes * 60000))} locked` : ''}${
                 e.penaltyMinutes ? ` · +${e.penaltyMinutes} min escape` : ''

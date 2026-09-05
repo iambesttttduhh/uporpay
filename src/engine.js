@@ -20,6 +20,7 @@ import * as db from './db.js'
 import { alarmSound, acquireWakeLock, releaseWakeLock, enterFullscreen, exitFullscreen } from './audio.js'
 import { verifyOutside, verifyMovementBetweenShots, analyzeImageData } from './verify.js'
 import { motionProbe, currentLocation } from './camera.js'
+import { speechSupport } from './speech.js'
 import { native, detect as detectNative } from './native.js'
 
 const TICK_MS = 400
@@ -590,7 +591,12 @@ class Engine {
    * analysed in memory and thrown away, and only the numbers survive in the
    * journal. That is what makes the mission feel instant instead of laggy.
    */
-  async submitProof({ transcript, score, missing, peak, seconds, simulated, sceneStats, sceneMotion, location, sleepLocation }) {
+  /**
+   * One proof, in the order the mission asked for it. `typed: true` is the
+   * no-microphone channel: near-exact sentence, same gaps, and refused outright
+   * on a device that can hear you.
+   */
+  async submitProof({ transcript, score, missing, peak, seconds, simulated, typed, sceneStats, sceneMotion, location, sleepLocation }) {
     const ep = this.episode
     if (!ep || ep.phase !== PHASE.MISSION) return { ok: false, error: 'No live mission right now.' }
     const s = this.settings
@@ -618,32 +624,55 @@ class Engine {
     })
 
     if (step.kind === 'voice') {
-      // 2) did the words actually happen
-      const need = s.speechMatch ?? 0.6
-      const got = Number(score ?? 0)
+      const sup = speechSupport()
+      const typedPath = Boolean(typed)
+      // 2) did the words actually happen — out loud, or (only where the device
+      //    cannot hear at all) typed almost exactly
+      const need = typedPath ? Math.max(0.85, s.speechMatch ?? 0.6) : s.speechMatch ?? 0.6
+      const scored = typedPath ? logic.scoreTranscript(line.text, transcript ?? '') : null
+      const got = typedPath ? scored.score : Number(score ?? 0)
+      const lacking = typedPath ? scored.missing : missing ?? []
       checks.push({
         ok: got >= need,
-        label: `Said the line (${Math.round(got * 100)}% of ${Math.round(need * 100)}% needed)`,
+        label: `${typedPath ? 'Typed the line' : 'Said the line'} (${Math.round(got * 100)}% of ${Math.round(need * 100)}% needed)`,
         reasons: got >= need
-          ? [`Heard: "${transcript ?? ''}"`]
-          : [`Missing: ${(missing ?? []).slice(0, 6).join(', ') || 'the recogniser heard nothing'}`, 'Say the whole sentence out loud — not mumbled into a pillow.'],
+          ? [`${typedPath ? 'Typed: ' : 'Heard: '}"${transcript ?? ''}"`]
+          : [
+              `Missing: ${lacking.slice(0, 6).join(', ') || (typedPath ? '' : 'the recogniser heard nothing')}`,
+              typedPath
+                ? 'Type the whole sentence, in order, exactly as written.'
+                : 'Say the whole sentence out loud — not mumbled into a pillow.',
+            ],
       })
-      // 3) was there audio at all: recognition happily hallucinates in silence
-      const minLevel = s.micLevelMin ?? 0.03
-      // Measured, not claimed: a proof cannot declare itself "simulated" to get
-      // out of the audio check. The one exception is the explicit test-mode
-      // switch, which is labelled as simulating proofs and is off by default —
-      // without it there is no way to demo the app on a device that has neither
-      // a recogniser nor a microphone (a blocked iframe, an old browser).
-      const excused = Boolean(simulated) && Boolean(s.testMode)
-      const quiet = !(Number.isFinite(peak) && peak >= minLevel) && !excused
-      checks.push({
-        ok: !quiet,
-        label: quiet ? 'Room was silent' : 'Voice detected on the mic',
-        reasons: quiet
-          ? [`Peak level ${Number.isFinite(peak) ? (peak * 100).toFixed(1) + '%' : 'not measured'} — say it loudly into the mic (needs > ${(minLevel * 100).toFixed(0)}%).`]
-          : [`Peak ${(Number(peak || 0) * 100).toFixed(0)}% over ${(seconds ?? 0).toFixed(1)} s`],
-      })
+      if (typedPath) {
+        // The typing channel exists only where speaking is impossible. Otherwise
+        // "deny the microphone" would itself be a way out of the mission.
+        const allowed = !sup.mic || !sup.recognize || Boolean(s.testMode)
+        checks.push({
+          ok: allowed,
+          label: 'Typed because this device cannot hear',
+          reasons: allowed
+            ? [`recogniser: ${sup.recognize ?? 'none'} · microphone: ${sup.mic ? 'available' : 'not available'}`]
+            : ['This device has a microphone and a speech recogniser, so speak the line. Typing is not the shortcut here.'],
+        })
+      } else {
+        // 3) was there audio at all: recognition happily hallucinates in silence
+        const minLevel = s.micLevelMin ?? 0.03
+        // Measured, not claimed: a proof cannot declare itself "simulated" to get
+        // out of the audio check. The one exception is the explicit test-mode
+        // switch, which is labelled as simulating proofs and is off by default —
+        // without it there is no way to demo the app on a device with neither a
+        // recogniser nor a microphone (a blocked iframe, an old browser).
+        const excused = Boolean(simulated) && Boolean(s.testMode)
+        const quiet = !(Number.isFinite(peak) && peak >= minLevel) && !excused
+        checks.push({
+          ok: !quiet,
+          label: quiet ? 'Room was silent' : 'Voice detected on the mic',
+          reasons: quiet
+            ? [`Peak level ${Number.isFinite(peak) ? (peak * 100).toFixed(1) + '%' : 'not measured'} — say it loudly into the mic (needs > ${(minLevel * 100).toFixed(0)}%).`]
+            : [`Peak ${(Number(peak || 0) * 100).toFixed(0)}% over ${(seconds ?? 0).toFixed(1)} s`],
+        })
+      }
     } else {
       // 4) surroundings: it has to look like a real scene and it has to move
       const stats = sceneStats ?? {}
@@ -687,6 +716,7 @@ class Engine {
         stepIndex,
         kind: step.kind,
         lineId: line?.id ?? null,
+        channel: step.kind === 'voice' ? (typed ? 'typed' : 'voice') : 'scene',
         score: Number(score ?? 0),
         attempts: ep.failedAttempts,
       })
@@ -702,7 +732,8 @@ class Engine {
         kind: step.kind,
         lineId: line?.id ?? null,
         lineText: line?.text ?? null,
-        score: Number(score ?? 1),
+        channel: step.kind === 'voice' ? (typed ? 'typed' : simulated ? 'simulated' : 'voice') : 'scene',
+        score: typed ? logic.scoreTranscript(line.text, transcript ?? '').score : Number(score ?? 1),
         peak: Number(peak ?? 0),
         seconds: Number(seconds ?? 0),
         simulated: Boolean(simulated),

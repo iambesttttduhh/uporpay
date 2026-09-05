@@ -113,7 +113,15 @@ test('every screen renders without throwing, empty and loaded', () => {
   // …and with an episode in every interesting phase, including a cleared one
   // arriving between the snapshot and the render.
   const loaded = { ...state, episode: fakeEpisode({ phase: 'mission', mode: 'inside' }) }
-  assert.match(views.mission.render(loaded), /SAY THIS OUT LOUD/)
+  const missionHtml = views.mission.render(loaded)
+  // The speaking channel when the device can hear, the typing channel when it
+  // cannot (jsdom has no microphone, so this is the typed one).
+  assert.match(missionHtml, /SAY THIS OUT LOUD|TYPE THIS EXACTLY/)
+  if (/TYPE THIS EXACTLY/.test(missionHtml)) {
+    assert.match(missionHtml, /id="type-in"/)
+    assert.match(missionHtml, /id="type-btn"/)
+    assert.doesNotMatch(missionHtml, /id="mic-btn"/, 'no speak button when there is no mic')
+  }
   assert.match(views.mission.render({ ...state, episode: null }), /No mission running/)
 })
 
@@ -309,6 +317,100 @@ test('when the lock timer runs out you are let go and the record shows it', asyn
   assert.equal(engine.episode, null)
   const types = engine.events.slice(-2).map((e) => e.type)
   assert.ok(types.includes('released'), `expected a release event, got ${types.join(',')}`)
+})
+
+test('the typed channel is only for devices that cannot hear you', async () => {
+  await idle()
+  const define = (key, value) => Object.defineProperty(globalThis, key, { value, configurable: true, writable: true })
+  const media = dom.window.navigator.mediaDevices
+  await engine.setSettings({ testMode: false })
+  // give the fake browser a mic + recogniser, so typing must be refused
+  define(
+    'navigator',
+    Object.assign(Object.create(dom.window.navigator), { mediaDevices: { getUserMedia: () => Promise.resolve(null) } })
+  )
+  globalThis.webkitSpeechRecognition = class {
+    start() {}
+  }
+  try {
+    await engine.forceFire({ minutesOut: 0, label: 'Can hear you', missionMode: 'inside' })
+    await settle()
+    await engine.acceptMission('inside')
+    const line = logic.lineForStep(logic.episodeSeed(engine.episode), 0)
+    const r = await engine.submitProof({ typed: true, transcript: line.text })
+    assert.equal(r.ok, false, 'a device with a mic must not let you type your way out')
+    const gate = r.checks.find((c) => c.label.includes('cannot hear'))
+    assert.equal(gate.ok, false)
+    assert.match(gate.reasons.join(' '), /speak the line/i)
+    // and the same line spoken (score + measured peak) is accepted
+    const ok = await engine.submitProof({ transcript: line.text, score: 1, peak: 0.4, seconds: 5 })
+    assert.equal(ok.ok, true, JSON.stringify(ok.checks.map((c) => [c.label, c.ok])))
+  } finally {
+    // hand back the plain jsdom navigator (no mediaDevices), so every later test
+    // in this file runs as "a device that cannot hear" again
+    define('navigator', dom.window.navigator)
+    void media
+    delete globalThis.webkitSpeechRecognition
+    await engine.setSettings({ testMode: true })
+    await idle()
+  }
+})
+
+test('a typed line still has to be the right line', async () => {
+  await idle()
+  await engine.forceFire({ minutesOut: 0, label: 'Typing', missionMode: 'inside' })
+  await settle()
+  await engine.acceptMission('inside')
+  const line = logic.lineForStep(logic.episodeSeed(engine.episode), 0)
+  const wrong = await engine.submitProof({ typed: true, transcript: 'the wrong sentence' })
+  assert.equal(wrong.ok, false, 'typing anything must not clear a mission')
+  assert.match(wrong.checks.find((c) => c.label.includes('Typed the line')).reasons.join(' '), /Missing:/)
+  const right = await engine.submitProof({ typed: true, transcript: line.text })
+  assert.equal(right.ok, true, JSON.stringify(right.checks.map((c) => [c.label, c.ok])))
+  assert.equal(engine.episode.captures.at(-1).channel, 'typed', 'the journal must say how it was proven')
+})
+
+test('a failed alarm is re-armed after the lockout — serving the time is not paying the debt', async () => {
+  await idle()
+  await engine.setSettings({ reArmAfterLockout: true })
+  const fired = await engine.forceFire({ minutesOut: 0, label: 'Debt test', missionMode: 'inside' })
+  await settle()
+  await engine.acceptMission('inside')
+  // blow the deadline with nothing proven
+  engine.episode.missionDeadlineAt = Date.now() - 1
+  await settle()
+  assert.equal(engine.episode.phase, 'locked')
+  engine.episode.lockUntil = Date.now() - 1
+  await settle(4)
+  assert.equal(engine.episode, null, 'the lockout should have expired')
+  const owed = engine.alarms.find((a) => a.id === fired.id)
+  assert.equal(owed.debt, true, `the alarm must come back flagged: ${JSON.stringify(owed)}`)
+  assert.equal(owed.enabled, true, 'a failed trial alarm stays armed — that is the whole point')
+  assert.equal(owed.oneShot, false, 'the debt re-arms it as a normal alarm')
+  assert.equal(owed.debtStrikes, 1)
+  assert.ok(engine.events.some((e) => e.type === 'debt'), 'the debt is journaled')
+  // and the list shows it
+  assert.match(views.alarms.render(engine.snapshot()), /debt/)
+  // Paying it off means waking up to *that* alarm: the debt belongs to the alarm,
+  // so a clean wake-up on a different one must not clear it.
+  await engine._beginEpisode(owed, Date.now())
+  await settle()
+  assert.equal(engine.episode.alarmId, owed.id)
+  await engine.acceptMission('inside')
+  const stepCount = logic.missionSteps('inside', engine.settings).length
+  for (let i = 0; i < stepCount; i++) {
+    // each step demands a different sentence, so ask the app which one it wants
+    const want = logic.lineForStep(logic.episodeSeed(engine.episode), engine.episode.captures.length)
+    await engine.submitProof({ typed: true, transcript: want.text })
+    await engine.rewindSpacingForDemo()
+  }
+  await settle()
+  assert.equal(engine.episode.phase, 'success')
+  engine.episode.clearAt = Date.now() - 1
+  await settle(4)
+  assert.equal(engine.alarms.find((a) => a.id === owed.id).debt, false, 'a win pays the debt off')
+  assert.equal(engine.alarms.find((a) => a.id === owed.id).debtStrikes, 0)
+  await idle()
 })
 
 test('leaving the lock screen is billed, and the ledger survives a reload', async () => {

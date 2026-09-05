@@ -193,6 +193,28 @@ function sceneHtml(s) {
 }
 
 function voiceHtml(line, s, sup) {
+  // No recogniser or no microphone means the speaking channel cannot be
+  // measured at all — so the sentence has to be typed instead, in a box that
+  // refuses paste, with the same minute between lines. Still not a button.
+  const mustType = !sup.recognize || !sup.mic
+  if (mustType) {
+    return `
+    ${line ? `
+    <div class="line-card">
+      <div class="lc-k">TYPE THIS EXACTLY</div>
+      <blockquote class="lc-v" id="line-text">${esc(line.text)}</blockquote>
+      <div class="lc-heard"><span class="tiny muted">This device gave the app no microphone or no speech recogniser, so the line is typed. Same sentence, same gap, same rules.</span></div>
+    </div>
+    <div class="type-box">
+      <textarea id="type-in" rows="2" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Type the sentence above, word for word"></textarea>
+      <div class="tb-meta">
+        <span class="mono" id="type-count">0 words</span>
+        <span class="tiny muted">pasting is blocked — this is typing, not copying</span>
+      </div>
+      <button class="btn primary block big" id="type-btn">SUBMIT THE LINE</button>
+    </div>` : ''}
+    <div class="tiny muted center">${esc(logic.missionTitle('inside', s))} — but typed. ${Math.round((Math.max(0.85, s.speechMatch ?? 0.6)) * 100)}% of the words must be right, in order.</div>`
+  }
   return `
     ${line ? `
     <div class="line-card">
@@ -202,7 +224,7 @@ function voiceHtml(line, s, sup) {
       <div class="meter" id="meter">${'<i></i>'.repeat(18)}</div>
     </div>` : ''}
     <button class="btn primary block big" id="mic-btn">HOLD TO SPEAK</button>
-    <div class="tiny muted center" style="margin-top:8px">${sup.recognize === 'native' ? 'System speech recogniser (offline-capable)' : sup.recognize === 'web' ? 'Browser speech recognition' : 'no recogniser'} · needs you to actually talk, ${sup.mic ? 'the mic shows the level' : 'mic unavailable'}</div>`
+    <div class="tiny muted center" style="margin-top:8px">${sup.recognize === 'native' ? 'System speech recogniser (offline-capable)' : 'Browser speech recognition'} · needs you to actually talk, ${sup.mic ? 'the mic shows the level' : 'mic unavailable'}</div>`
 }
 
 export async function mount(root) {
@@ -429,6 +451,65 @@ function bindControls(root) {
     sceneBtn.addEventListener('pointerleave', up)
   }
 
+  const typeBox = root.querySelector('#type-in')
+  const typeBtn = root.querySelector('#type-btn')
+  if (typeBox && typeBtn) {
+    const line = logic.lineForStep(logic.episodeSeed(engine.episode), engine.episode.captures.length)
+    const need = Math.max(0.85, engine.settings.speechMatch ?? 0.6)
+    const counter = root.querySelector('#type-count')
+    let from = Date.now()
+    const paintCount = () => {
+      if (!counter || !line) return
+      const v = typeBox.value.trim()
+      const r = logic.scoreTranscript(line.text, v)
+      const words = logic.normalizeWords(v).length
+      counter.textContent = `${words} word${words === 1 ? '' : 's'} · match ${Math.round(r.score * 100)}%/${Math.round(need * 100)}%`
+      counter.style.color = r.score >= need ? 'var(--ok)' : 'var(--dim)'
+    }
+    const submit = async () => {
+      if (VIEW.busy) return
+      const value = typeBox.value.trim()
+      if (!value) {
+        toast('Type the sentence first.', 'bad', 2500)
+        typeBox.focus()
+        return
+      }
+      VIEW.busy = true
+      typeBtn.disabled = true
+      const out = await engine.submitProof({ typed: true, transcript: value, seconds: (Date.now() - from) / 1000 })
+      VIEW.busy = false
+      typeBtn.disabled = false
+      showResult(out)
+      if (out.ok) {
+        from = Date.now()
+        toast(out.done ? 'Done. Out of bed.' : 'Accepted. Next line when the clock says so.', 'good', 3000)
+        setTimeout(() => !VIEW.destroyed && remountBody(), 700)
+      } else {
+        const bad = (out.checks ?? []).find((c) => !c.ok)
+        toast(bad?.reasons?.[0] ?? 'Not close enough to the sentence', 'bad', 4200)
+        typeBox.focus()
+        paintCount()
+      }
+    }
+    // Copy-paste would turn this into "select the sentence, paste, done" — which
+    // is exactly the button press we removed. So the box only accepts typing.
+    typeBox.addEventListener('paste', (e) => {
+      e.preventDefault()
+      toast('Pasting is not typing.', 'bad', 2600)
+    })
+    typeBox.addEventListener('drop', (e) => e.preventDefault())
+    typeBox.addEventListener('input', paintCount)
+    typeBox.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        void submit()
+      }
+    })
+    typeBtn.addEventListener('click', submit)
+    paintCount()
+    return
+  }
+
   if (micBtn) {
     let session = null
     const start = async (e) => {
@@ -474,12 +555,10 @@ function bindControls(root) {
       // No recogniser at all + test mode on → the line is simulated and the
       // result says so out loud. Without test mode this is a rejection instead,
       // because "the app could not hear me" must never be a way out of a mission.
-      const simmed = res.error === 'no-speech-recogniser' && engine.settings.testMode
-      if (simmed) toast('No recogniser on this device — proof simulated by test mode.', 'bad', 4000)
       const out = await engine.submitProof({
-        transcript: res.transcript ?? (simmed ? line.text : ''),
-        simulated: Boolean(res.simulated) || simmed,
-        score: res.score ?? (simmed ? 1 : res.simulated ? 1 : 0),
+        transcript: res.transcript,
+        simulated: Boolean(res.simulated),
+        score: res.score ?? (res.simulated ? 1 : 0),
         missing: res.missing,
         peak: res.peak,
         seconds: res.seconds,

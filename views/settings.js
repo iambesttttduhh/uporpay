@@ -91,6 +91,7 @@ export function render(state) {
   <div class="card">
     ${n('How clearly you must speak', 'speechMatch', s.speechMatch, 0.3, 0.95, 0.05, '%', 'Share of the sentence the recogniser has to hear. Under this the line does not count — raise it if you are getting away with mumbles.', true)}
     ${n('How loud', 'micLevelMin', s.micLevelMin, 0.01, 0.2, 0.01, '', 'Peak microphone level while you speak. A silent room recognises nothing, and nothing never counts.', true)}
+    <div class="tiny muted">No microphone or no speech recogniser on this device? The line is then <b>typed</b> into a box that refuses pasting — same sentence, same minute between lines, and it is refused outright on a device that can hear you.</div>
     <button class="btn sm block ghost" data-voice-test>🎙️ Test mic with one line</button>
     <div class="tiny muted" style="margin-top:6px" data-voice-out>Web builds read the browser meter; on Android the system recogniser is used. Nothing is recorded.</div>
   </div>
