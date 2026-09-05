@@ -1,1 +1,1 @@
-6cb8cdbf480e36644996796ed3021ab62791559c912a547e5a4f0cbcf0cdf6c2  wake-or-lock-debug.apk
+456d54703f1f825e8a286b3584a59e370dd17715d579dfaaaa40df8b889891c3  wake-or-lock-debug.apk
