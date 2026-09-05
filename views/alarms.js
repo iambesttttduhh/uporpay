@@ -13,10 +13,16 @@ export function render(state) {
     ? alarms
         .map((a) => {
           const next = logic.nextAlarmAt(a, now)
+          // Split the meridiem out rather than building markup and escaping the
+          // whole thing — that is how a list of alarms ends up showing <span> tags.
+          const shown = String(logic.formatAlarmTime(a.time))
+          const mer = shown.match(/(AM|PM)/i)
+          const clock = esc(shown.replace(/\s?(AM|PM)\s?/i, ''))
+          const ampm = mer ? `<span class="ampm">${esc(mer[0].toUpperCase())}</span>` : ''
           return `
       <div class="alarm ${a.enabled ? '' : 'off'}" data-alarm="${a.id}">
         <div class="grow">
-          <div class="alarm-time">${esc(logic.formatAlarmTime(a.time).replace(/ (AM|PM)/, ' <span>$1</span>'))}</div>
+          <div class="alarm-time">${clock}${ampm}</div>
           <div class="alarm-label" style="margin-top:6px">${esc(a.label)} ${a.oneShot ? '<span class="chip">one-time</span>' : ''}</div>
           <div class="chips">
             <span class="chip">${esc(logic.describeDays(a.days))}</span>

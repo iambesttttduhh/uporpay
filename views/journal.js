@@ -3,7 +3,7 @@ import { engine } from '../src/engine.js'
 import { esc, openSheet, toast } from '../src/ui.js'
 
 // ---------------------------------------------------------------------------
-// Journal — every alarm, every photo, every lockout. The receipt.
+// Journal — every alarm, every proof, every lockout. The receipt.
 // ---------------------------------------------------------------------------
 
 export function render(state) {

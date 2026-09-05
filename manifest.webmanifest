@@ -1,7 +1,7 @@
 {
   "name": "Wake or Lock",
   "short_name": "WakeOrLock",
-  "description": "An alarm clock you cannot dismiss. Complete a photo mission or lose your phone for hours.",
+  "description": "An alarm clock you cannot dismiss: say a sentence out loud, or show the room, or the phone is locked for hours.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -349,7 +349,7 @@ async function dataSheet() {
   openSheet(
     `<h3>Data on this device</h3>
      <div class="tiny muted" style="line-height:1.6">
-       Alarms, strike history and captured photos live in IndexedDB on this phone. Nothing is uploaded — there is no server in this project.<br/><br/>
+       Alarms, strike history and the proof log live in IndexedDB on this phone. Nothing is uploaded — there is no server in this project. No photographs and no audio are stored: a proof is a score, a mic level and a duration.<br/><br/>
        Deleting the data also deletes your strikes. That is the one honest escape route in this build, and it is why a real version needs the native lock.
      </div>
      <div class="btn-grid" style="margin-top:14px">
@@ -378,7 +378,7 @@ async function dataSheet() {
         if (e.target.closest('[data-wipe]')) {
           close()
           const ok = await confirmSheet({
-            title: 'Wipe strikes, history and photos?',
+            title: 'Wipe strikes, history and proofs?',
             body: 'Your punishment ladder resets to zero. This is the "clever" way out, and it is logged as a <b>reset</b> in the export you just declined.',
             confirmLabel: 'Wipe it all',
           })

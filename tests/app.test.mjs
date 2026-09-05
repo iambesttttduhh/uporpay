@@ -370,6 +370,19 @@ test('a typed line still has to be the right line', async () => {
   assert.equal(engine.episode.captures.at(-1).channel, 'typed', 'the journal must say how it was proven')
 })
 
+test('the alarm list prints a clock, not markup', async () => {
+  await idle()
+  const st = engine.snapshot()
+  st.alarms = [{ id: 'x1', time: '06:40', label: 'Gym', days: [1], missionMode: 'outside', enabled: true, debt: true, debtStrikes: 1 }]
+  const html = views.alarms.render(st)
+  // An esc() wrapped around the whole formatted time escaped the meridiem span and
+  // every alarm row showed literal <span> tags. Cheap test, very visible bug.
+  assert.ok(!/&lt;|&gt;/.test(html), `escaped markup leaked into the list: ${html.slice(0, 200)}`)
+  assert.match(html, /class="ampm">AM</)
+  assert.match(html, /6:40/)
+  assert.match(html, /chip debt/, 'an alarm you failed is still flagged')
+})
+
 test('a failed alarm is re-armed after the lockout — serving the time is not paying the debt', async () => {
   await idle()
   await engine.setSettings({ reArmAfterLockout: true })
