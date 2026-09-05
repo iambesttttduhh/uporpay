@@ -11,6 +11,7 @@
 // camera silently dies. Self-signed https makes the phone behave.
 // ---------------------------------------------------------------------------
 import { createServer } from 'node:http'
+import { pathToFileURL } from 'node:url'
 import { readFile, stat } from 'node:fs/promises'
 import { existsSync, mkdirSync } from 'node:fs'
 import { normalize, join } from 'node:path'
@@ -65,7 +66,7 @@ const HEADERS = {
   'Access-Control-Allow-Origin': '*',
 }
 
-async function handler(req, res) {
+export async function handler(req, res) {
   try {
     const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`)
     let path = decodeURIComponent(url.pathname)
@@ -101,7 +102,7 @@ async function handler(req, res) {
       res.writeHead(304, HEADERS).end()
       return
     }
-    const heads = { ...HEADERS, 'Content-Type': type, ETag: `"${hash}"`, 'Content-Length': body.length }
+    const heads = { ...HEADERS, 'Content-Type': type, ETag: `"${hash}"`, 'Content-Length': body.length, 'Accept-Ranges': 'bytes' }
     // Archives and packages are served as downloads; without this some browsers
     // try to open the zip inline, or the phone refuses to offer "install".
     if (path.endsWith('.zip') || path.endsWith('.apk')) {
@@ -110,11 +111,45 @@ async function handler(req, res) {
       const leaf = path.split('/').filter(Boolean).pop() ?? 'download'
       heads['Content-Disposition'] = `attachment; filename="${leaf.replace(/"[^"]*$/, '')}"`
     }
+    // Range requests, because a 4.3 MB APK over mobile data does get interrupted
+    // and Android's download manager resumes with a Range instead of starting over.
+    // Single ranges only; anything odder is served whole rather than failed.
+    const range = parseRange(req.headers.range, body.length)
+    if (range?.unsatisfiable) {
+      res.writeHead(416, { ...heads, 'Content-Range': `bytes */${body.length}` }).end()
+      return
+    }
+    if (range) {
+      const slice = body.subarray(range.start, range.end + 1)
+      res.writeHead(206, {
+        ...heads,
+        'Content-Range': `bytes ${range.start}-${range.end}/${body.length}`,
+        'Content-Length': slice.length,
+      })
+      res.end(slice)
+      return
+    }
     res.writeHead(200, heads)
     res.end(body)
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'text/plain' }).end(String(err?.message ?? err))
   }
+}
+
+/** `bytes=0-99`, `bytes=99-`, `bytes=-50`; null for anything this server will not
+ * attempt (multi-range, open-ended junk) so the caller falls back to a 200. */
+export function parseRange(header, size) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(header ?? '').trim())
+  if (!m || (m[1] === '' && m[2] === '')) return null
+  if (m[1] === '') {
+    const n = Math.min(Number(m[2]), size)
+    if (!n) return { unsatisfiable: true }
+    return { start: size - n, end: size - 1 }
+  }
+  const start = Number(m[1])
+  const end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1)
+  if (start >= size || start > end) return { unsatisfiable: true }
+  return { start, end }
 }
 
 function ensureCerts() {
@@ -184,4 +219,6 @@ async function start() {
   })
 }
 
-start()
+// `node serve.js` starts listening; importing this module (the tests do) only gets
+// you handler/parseRange, without taking the port out from under a running server.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) start()
