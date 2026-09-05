@@ -105,8 +105,10 @@ public class MainActivity extends BridgeActivity {
         }, 2500L);
     }
 
+    // public, not protected: Capacitor's BridgeActivity declares onPause() public,
+    // and Java will not let an override narrow the access.
     @Override
-    protected void onPause() {
+    public void onPause() {
         super.onPause();
         LockGuard.setImmersive(this, LockGuard.remainingMs(this) > 0);
     }

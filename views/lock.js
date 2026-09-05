@@ -56,7 +56,7 @@ export function render(state) {
         <div class="tiny muted" style="margin-top:7px">${
           native.available
             ? native.hardLock
-              ? 'Device owner: the system confines this task, there is no Unpin button, and shutdown / safe boot / factory reset / uninstall are blocked while the lockout runs. A reboot comes back here.'
+              ? 'Device owner: the system confines this task, there is no Unpin button, and uninstall / safe boot / factory reset / adb debugging / changing the clock are blocked while the lockout runs. The power button is Android\u2019s, not ours — but a reboot comes back here with the same time left.'
               : `Pinned with screen pinning, so Android shows an Unpin button. Using it is not an exit: each attempt adds ${s.escapePenaltyMinutes ?? 15} min (capped at ${Math.round((s.escapePenaltyCapMinutes ?? 240) / 60)} h) and the leash drags this screen back to the front within seconds. Rebooting does it too — BootReceiver re-applies what is left.`
             : 'Browser build: this covers the page and nothing more is possible without the APK (docs/APK.md).'
         }</div>

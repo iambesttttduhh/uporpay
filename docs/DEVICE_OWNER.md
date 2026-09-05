@@ -19,7 +19,10 @@ mechanism MDM vendors use.
 | Other apps reachable | all of them | only what `setLockTaskPackages()` lists |
 | The phone call you are allowed | you can dial anything | only the dialer — so "a normal call still works" is literally true |
 | Uninstall / Safe Boot / factory reset | trivial | `DISALLOW_UNINSTALL_APPS`, `DISALLOW_SAFE_BOOT`, `DISALLOW_FACTORY_RESET` |
-| Clearing app data (the honest hole in the web build) | settings → clear data, strikes gone | blocked by a user restriction |
+| Moving the clock back to end a countdown early | free | `DISALLOW_CONFIG_DATE_TIME` while the lockout runs |
+| `adb` debugging as an escape route | always on | `DISALLOW_DEBUGGING_FEATURES` (Android 11+) |
+| The power button / a hard reboot | works | **still works** — no app, not even a device owner, may block power off. What does not work is *escaping the punishment*: `BootReceiver` reads the deadline back out of storage and the leash re-pins the screen before you have unlocked the phone |
+| Settings → App → Clear data | one tap, ledger gone | uninstall is blocked, so the way in is `adb pm clear` — which needs USB debugging, which is blocked while a lockout runs. The remaining honest hole is recovery mode: a factory reset always frees the phone, and it also deletes every alarm you own |
 
 The dialer entry is resolved at runtime through the `<queries>` block in the manifest
 (`ACTION_DIAL`), because Android 11+ package visibility means you cannot hardcode

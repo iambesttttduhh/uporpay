@@ -35,8 +35,8 @@ import java.util.List;
  *    time is added here, in prefs, so it survives the app being killed.
  *  - Device Owner (docs/DEVICE_OWNER.md): the system confines the device to this
  *    app plus whatever answers ACTION_DIAL, and while the lockout runs we add the
- *    user restrictions that make "reboot and try again" fail: no shutdown, no
- *    safe boot, no factory reset, no uninstall, no adb. A reboot then comes back
+ *    user restrictions that make "reboot and try again" fail: no uninstall, no
+ *    safe boot, no factory reset, no clock edits, no adb. A hard reboot then comes
  *    into the same lockout via BootReceiver — which is as close to "you cannot get
  *    out" as the platform allows a non-system app.
  *
@@ -141,8 +141,9 @@ public final class LockGuard {
                 ActivityManager am = (ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
                 if (am != null) {
                     int state = am.getLockTaskModeState();
-                    if (state == ActivityManager.LOCK_TASK_MODE_LOCKED
-                            || state == ActivityManager.LOCK_TASK_MODE_MULTI_WINDOW) {
+                    // LOCK_TASK_MODE_NONE is the only state that means "you can leave".
+                    // Anything else is the system holding us in the task.
+                    if (state != ActivityManager.LOCK_TASK_MODE_NONE) {
                         return false;
                     }
                 }
@@ -219,8 +220,13 @@ public final class LockGuard {
         k.add(UserManager.DISALLOW_UNINSTALL_APPS);
         k.add(UserManager.DISALLOW_SAFE_BOOT);
         k.add(UserManager.DISALLOW_FACTORY_RESET);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) k.add(UserManager.DISALLOW_SHUTDOWN);
+        // The clock is the cheapest way to end a countdown early, so while the
+        // lockout runs the system clock cannot be edited either.
+        k.add(UserManager.DISALLOW_CONFIG_DATE_TIME);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) k.add(UserManager.DISALLOW_DEBUGGING_FEATURES);
+        // There is no public DISALLOW_SHUTDOWN: an app — even a device owner — cannot
+        // block the power button. That is why a reboot is answered by resuming the
+        // same deadline from BootReceiver instead of pretending it cannot happen.
         return k.toArray(new String[k.size()]);
     }
 

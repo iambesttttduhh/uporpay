@@ -76,8 +76,10 @@ THE APK (this is the one that can actually hold your phone)
     reboot that comes back into the same lockout.
 
     What you only get with one extra adb command: a device-owner lock-task, where
-    Android itself refuses to leave the app — no Unpin button at all, and shutdown,
-    safe boot, factory reset and uninstall blocked while it runs:
+    Android itself refuses to leave the app — no Unpin button at all, and uninstall,
+    safe boot, factory reset, adb debugging and editing the clock are all blocked
+    while it runs (the power button stays Android's: a hard reboot always works, the
+    lockout just resumes afterwards):
 
         adb shell dpm set-device-owner com.uporpay.wakeorlock/.AppDeviceReceiver
 
