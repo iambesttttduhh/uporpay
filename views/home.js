@@ -93,7 +93,7 @@ export function render(state) {
       <div class="rule"><div class="n"></div><div>You then get <b>${esc(minutes(settings.missionWindowMinutes))}</b> to prove you are awake:</div></div>
       <div class="rule"><div class="n"></div><div><b>OUTSIDE</b> — ${settings.outsideSceneSeconds} s of your surroundings on the camera (it must move, and daylight/GPS have to agree), then <b>say ${settings.outsideLines} line${settings.outsideLines > 1 ? 's' : ''}</b>. Nothing is photographed.</div></div>
       <div class="rule"><div class="n"></div><div><b>INDOORS</b> — <b>${settings.insideLines} lines, ${esc(minutes(settings.insideLineGapMinutes))} apart</b>, each a different sentence picked for you. Start late and the maths makes it impossible.</div></div>
-      <div class="rule"><div class="n"></div><div><b>NEVER TAPPED AWAKE</b> — let the ${settings.missionWindowMinutes}-minute window run out without starting a mission and the lockout is <b>${settings.neverWokeLockHours} hours</b>, whatever your strike count. Ten failed mornings is the ${settings.maxLockHours}-hour ceiling.</div></div>
+      <div class="rule"><div class="n"></div><div><b>NEVER TAPPED AWAKE</b> — let the ${settings.missionWindowMinutes}-minute window run out without starting a mission and the lockout is <b>${settings.neverWokeLockHours} hours</b>, whatever your strike count. Ten failed mornings is ${settings.lockHoursCurve[settings.lockHoursCurve.length - 1] ?? settings.maxLockHours} hours, and Settings → Cap caps it at ${settings.maxLockHours} h.</div></div>
       <div class="rule"><div class="n"></div><div>Miss the deadline → <b>phone locked, ${esc(logic.lockLabel(strikes + 1, settings))}</b>. Only a phone call gets through. Nothing unlocks it early.</div></div>
     </div>
   </div>

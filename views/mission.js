@@ -53,7 +53,9 @@ export function renderRing(state) {
         <div class="dl-k">LOCKED IN</div>
         <div class="dl-v mono" data-cd-deadline>—</div>
       </div>
-      <div class="cost">Fail it and your next <b>${esc(logic.lockLabel((state.strikes ?? 0) + 1, s))}</b> is gone.${ep.neverWoke ? ' You have not even tapped awake — that is the 20-hour one.' : ''}</div>
+      <div class="cost">Miss this and <b>${esc(logic.lockLabel((state.strikes ?? 0) + 1, s))}</b> of phone access is gone.${
+        ep.neverWoke ? ' You have not even tapped awake — that is the 20-hour one.' : ''
+      }</div>
     </div>
   </div>`
 }
