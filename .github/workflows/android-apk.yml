@@ -86,7 +86,11 @@ jobs:
 
       # Cheap gate before a multi-minute Android build: the rules are the product.
       - name: Run the JS test suite
-        run: node --test tests/*.test.mjs
+        run: |
+          # Kept in a file so the digest step below can show it: the JS suite is the
+          # step that fails most often, and it fails before any Gradle log exists.
+          set -o pipefail
+          node --test tests/*.test.mjs 2>&1 | tee /tmp/tests.log
 
       - name: Stage www/ (the WebView payload)
         run: node tools/build-www.mjs
@@ -111,11 +115,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Any failing step, not just Gradle. The old version grepped a log that
+          # does not exist when the JS suite dies, and `grep`'s exit code then killed
+          # this step under `set -e` — so a red build showed nobody anything.
           {
             echo '```'
-            grep -nE "^e: |error:|FAILURE:|What went wrong|Caused by:|Execution failed for|Unresolved|符号|> Task .* FAILED" -A 5 /tmp/gradle.log | tail -140
-            echo '--- tail ---'
-            tail -50 /tmp/gradle.log
+            if [ -s /tmp/gradle.log ]; then
+              grep -nE "^e: |error:|FAILURE:|What went wrong|Caused by:|Execution failed for|Unresolved|> Task .* FAILED" -A 5 /tmp/gradle.log | tail -140
+              echo '--- tail ---'
+              tail -50 /tmp/gradle.log
+            else
+              echo 'no gradle log: the build failed before the Android step'
+            fi
+            if [ -s /tmp/tests.log ]; then
+              echo '--- js tests ---'
+              grep -nE "^not ok|Error|expected|actual" -A 3 /tmp/tests.log | tail -120
+            fi
             echo '```'
           } > digest.md
           wc -c digest.md

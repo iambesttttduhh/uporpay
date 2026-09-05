@@ -130,22 +130,30 @@ test('the lock counts down to release and hands the shell back', async () => {
   assert.notEqual(doc.querySelector('.nav').style.display, 'none', 'nav returns')
 })
 
-test('the staged bundle and the APK both say which commit they are', async () => {
+test('the staged bundle says which commit it was built from', async () => {
   // A build is handed around over chat and installed over itself, so it has to be
   // identifiable from inside the app — a filename in Downloads is not a version,
   // and `versionCode 1` forever eventually makes Android refuse the new build.
   const { readFile } = await import('node:fs/promises')
-  const json = JSON.parse(await readFile(new URL('../www/native.json', import.meta.url), 'utf8'))
-  assert.equal(json.native, true, 'the marker only ships in the staged bundle')
-  assert.match(json.rev, /^[0-9a-f]{7,40}$/, 'the bundle carries the commit it was built from')
-  assert.equal(typeof json.builtAt, 'string')
+  const { buildStamp } = await import('../tools/build-stamp.mjs')
+  const stamp = buildStamp({ root: new URL('..', import.meta.url).pathname })
+  assert.equal(stamp.native, true, 'the marker is what tells the bundle it is in an APK')
+  assert.match(stamp.rev, /^[0-9a-f]{7}$/, 'a real checkout stamps the commit')
+
+  // and CI, where the checkout may be shallow and tag-less, gets the same answer
+  const fromCi = buildStamp({ root: '/nonexistent', env: { GITHUB_SHA: 'deadbee1234567890'.padEnd(40, '0') } })
+  assert.equal(fromCi.rev, 'deadbee')
+  const blind = buildStamp({ root: '/nonexistent', env: {} })
+  assert.equal(blind.rev, 'unknown', 'no git and no CI variable must not throw or fake a sha')
+  assert.equal(blind.described, 'unknown')
 
   const gradle = await readFile(new URL('../android/app/build.gradle', import.meta.url), 'utf8')
   assert.match(gradle, /GITHUB_RUN_NUMBER/, 'versionCode comes from CI, not from a hand-edit')
   assert.match(gradle, /versionName "1\.0\." \+/, 'versionName is derived too')
   assert.doesNotMatch(gradle, /^\s*versionCode 1\s*$/m, 'no frozen versionCode')
 
-  // and the settings sheet reads it back out
+  // the settings screen reads it through the bridge layer, which must always have
+  // the key: printing `undefined` next to "Build" is how you lose a whole release
   const { nativeInfo } = await import('../src/native.js')
-  assert.ok('rev' in nativeInfo(), 'the bridge surfaces the stamp even where the native plugin is absent')
+  assert.ok('rev' in nativeInfo(), 'the bridge surfaces the stamp even without the native plugin')
 })
