@@ -22,15 +22,23 @@ function bumpNative() {
 export function render(state) {
   const s = state.settings
   const info = nativeInfo()
-  const n = (label, key, value, min, max, step, unit, hint) => `
+  // `pct` renders a 0–1 setting as 0–100 so your thumb works in whole numbers,
+  // and the handler scales it back before it touches the settings.
+  const n = (label, key, value, min, max, step, unit, hint, pct = false) => {
+    const sc = pct ? 100 : 1
+    const shown = Math.round(value * sc)
+    return `
     <div class="field" style="margin-bottom:13px">
       <label>${label}</label>
       <div class="row">
-        <input type="range" data-num="${key}" min="${min}" max="${max}" step="${step}" value="${value}" class="grow" />
-        <div class="mono" data-num-out="${key}" style="min-width:74px;text-align:right;font-weight:700">${value}${unit}</div>
+        <input type="range" data-num="${key}" ${pct ? 'data-num-pct="1"' : ''} min="${min * sc}" max="${max * sc}" step="${
+          step * sc
+        }" value="${shown}" class="grow" />
+        <div class="mono" data-num-out="${key}" style="min-width:74px;text-align:right;font-weight:700">${shown}${unit}</div>
       </div>
       ${hint ? `<div class="tiny muted">${hint}</div>` : ''}
     </div>`
+  }
 
   return `
   <div class="spread" style="margin:2px 2px 12px">
@@ -42,9 +50,11 @@ export function render(state) {
   <div class="card">
     ${n('Continuous buzz before it starts nag-bursting', 'ringMinutes', s.ringMinutes, 1, 20, 1, ' min', 'It keeps nagging after this until the deadline. It never just stops.')}
     ${n('Mission window (hard deadline)', 'missionWindowMinutes', s.missionWindowMinutes, 5, 120, 5, ' min', 'Time from the first buzz to "prove you are awake or lose the phone".')}
-    ${n('Indoor mission: number of photos', 'insidePhotos', s.insidePhotos, 2, 8, 1, '', 'More photos × the spacing below = the point at which the indoor option becomes impossible.')}
-    ${n('Indoor mission: spacing between photos', 'insideSpacingMinutes', s.insideSpacingMinutes, 1, 30, 1, ' min')}
-    ${n('Outside mission: pose selfies after the scenery shot', 'outsidePoseSelfies', s.outsidePoseSelfies, 1, 4, 1, '')}
+    ${n('Inside mission: lines you must say', 'insideLines', s.insideLines, 2, 6, 1, '', 'More lines × the gap below is what makes starting late impossible.')}
+    ${n('Inside mission: gap between lines', 'insideLineGapMinutes', s.insideLineGapMinutes, 1, 10, 1, ' min')}
+    ${n('Outside mission: lines after the scenery', 'outsideLines', s.outsideLines, 1, 4, 1, '', 'Random English sentences the app picks for you — the mic has to hear you say them.')}
+    ${n('Outside mission: hold the camera on your surroundings', 'outsideSceneSeconds', s.outsideSceneSeconds, 5, 30, 5, ' s', 'It checks the view is lit, has sky or greenery, and actually moved while you held it.')}
+    <div class="tiny muted" style="margin-top:4px"><b>No photographs.</b> Nothing is captured, stored or uploaded — the preview runs for a few seconds and only summary statistics are kept.</div>
   </div>
 
   <div class="section-title">The punishment</div>
@@ -56,7 +66,17 @@ export function render(state) {
         s.lockHoursCurve.map((h, i) => `${i + 1}→${h}h`).join('  ')
       )}</b></div>
     </div>
-    ${n('Cap', 'maxLockHours', s.maxLockHours, 1, 72, 1, ' h')}
+    ${n('Cap (ten strikes land here)', 'maxLockHours', s.maxLockHours, 1, 72, 1, ' h')}
+    ${n('Locked if you never tapped awake', 'neverWokeLockHours', s.neverWokeLockHours, 1, 48, 1, ' h', 'Let the whole window run out without starting a mission and you get this instead of the ladder value.')}
+    <div class="toggle-row">
+      <div class="txt">Re-arm the same alarm afterwards<small>When the lockout expires the alarm comes back for that day — you still owe the wake-up.</small></div>
+      <button class="switch ${s.reArmAfterLockout ? 'on' : ''}" data-bool="reArmAfterLockout"></button>
+    </div>
+    <div class="toggle-row">
+      <div class="txt">Charge escape attempts<small>Unpinning the task, going home or rebooting adds time per attempt up to the cap. Off = leaving is free.</small></div>
+      <button class="switch ${s.chargeEscapes ? 'on' : ''}" data-bool="chargeEscapes"></button>
+    </div>
+    ${n('Penalty per escape attempt', 'escapePenaltyMinutes', s.escapePenaltyMinutes ?? 15, 1, 60, 1, ' min')}
     <div class="toggle-row">
       <div class="txt">Keep nagging after the buzz<small>Short bursts every 30 s until the deadline, so silence never means you got away with it</small></div>
       <button class="switch ${s.escalationNagAfterRing ? 'on' : ''}" data-bool="escalationNagAfterRing"></button>
@@ -65,6 +85,14 @@ export function render(state) {
       <div class="txt">Panic release on the lock screen<small>5-second hold-to-confirm. Costs an extra strike. <b>Off = no way out.</b> Only enable if you have kids, a medical need, or a job that can't wait an hour.</small></div>
       <button class="switch ${s.panicReleaseEnabled ? 'on' : ''}" data-bool="panicReleaseEnabled"></button>
     </div>
+  </div>
+
+  <div class="section-title">Voice</div>
+  <div class="card">
+    ${n('How clearly you must speak', 'speechMatch', s.speechMatch, 0.3, 0.95, 0.05, '%', 'Share of the sentence the recogniser has to hear. Under this the line does not count — raise it if you are getting away with mumbles.', true)}
+    ${n('How loud', 'micLevelMin', s.micLevelMin, 0.01, 0.2, 0.01, '', 'Peak microphone level while you speak. A silent room recognises nothing, and nothing never counts.', true)}
+    <button class="btn sm block ghost" data-voice-test>🎙️ Test mic with one line</button>
+    <div class="tiny muted" style="margin-top:6px" data-voice-out>Web builds read the browser meter; on Android the system recogniser is used. Nothing is recorded.</div>
   </div>
 
   <div class="section-title">Sound, sensors, proof</div>
@@ -152,6 +180,33 @@ export function render(state) {
 }
 
 export function mount(root) {
+  root.addEventListener('click', async (e) => {
+    if (!e.target.closest('[data-voice-test]')) return
+    const out = root.querySelector('[data-voice-out]')
+    if (out) out.textContent = 'Say the line out loud…'
+    const speech = await import('../src/speech.js')
+    const line = logic.lineForStep('settings-test', 0)
+    const s = engine.settings
+    if (out) out.innerHTML = `Say this out loud: <b>${esc(line.text)}</b>`
+    try {
+      const r = await speech.sayLine({
+        required: line.text,
+        maxSeconds: 12,
+        minLevel: s.micLevelMin ?? 0.03,
+        onPartial: (v) => {
+          if (out && (v.transcript || v.interim)) out.textContent = `Hearing: ${v.transcript || v.interim}`
+        },
+      })
+      if (out)
+        out.innerHTML = `Heard “${esc(r.transcript || r.error || 'nothing')}” — match <b>${Math.round((r.score ?? 0) * 100)}%</b> vs needed <b>${Math.round(
+          s.speechMatch * 100
+        )}%</b>, mic peak <b>${Math.round((r.peak ?? 0) * 100)}</b>. ${
+          r.error ? `(${esc(r.error)}) ` : ''
+        }${(r.score ?? 0) >= s.speechMatch && r.peak >= (s.micLevelMin ?? 0.03) ? 'That would count.' : 'That would not count.'}`
+    } catch (err) {
+      if (out) out.textContent = `Mic failed: ${err?.message ?? err}`
+    }
+  })
   root.addEventListener('click', async (e) => {
     if (e.target.closest('[data-native-notify]')) {
       const r = await native.requestNotifications()
@@ -251,7 +306,12 @@ export function mount(root) {
       // Patch the read-out by hand and let the value settle on 'change' — a
       // re-render mid-drag would drop the slider under your thumb.
       const out = root.querySelector(`[data-num-out="${num.dataset.num}"]`)
-      if (out) out.textContent = num.value + (out.textContent.trim().endsWith('h') ? ' h' : out.textContent.trim().endsWith('min') ? ' min' : '')
+      if (out) {
+        const txt = out.textContent.trim()
+        out.textContent =
+          num.value +
+          (num.dataset.numPct ? '%' : txt.endsWith('h') ? ' h' : txt.endsWith('min') ? ' min' : txt.endsWith('s') ? ' s' : '')
+      }
       return
     }
     const txt = e.target.closest('[data-txt]')
@@ -269,8 +329,9 @@ export function mount(root) {
     if (!num) return
     const key = num.dataset.num
     const was = engine.settings[key]
-    if (Number(num.value) === was) return
-    engine.setSettings({ [key]: Number(num.value) })
+    const value = num.dataset.numPct ? Number(num.value) / 100 : Number(num.value)
+    if (value === was) return
+    engine.setSettings({ [key]: value })
     if (['ringMinutes', 'missionWindowMinutes'].includes(key)) {
       toast(`${esc(key)} → ${num.value} min${engine.settings.demoTiming ? ' (demo: ÷60)' : ''}`)
     }

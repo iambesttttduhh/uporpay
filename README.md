@@ -13,29 +13,34 @@ alarm fires
    │       │
    │       └── after that it nag-bursts until the deadline (silence never means you got away)
    │
-   ├── you tap "I'M AWAKE" → mission starts (30 min hard deadline, from the FIRST BUZZ)
+   ├── you tap "I'M AWAKE" → mission starts (20 min hard deadline, from the FIRST BUZZ)
    │       │
-   │       ├── OUTSIDE ── 1 photo of where you are + 1 pose selfie
+   │       ├── OUTSIDE ── 12 s of your surroundings on the live camera (it must be
+   │       │              bright, have sky or green in it, and it must MOVE) and
+   │       │              then 2 lines of English the app picks for you, spoken
+   │       │              into the mic — nothing is photographed, nothing is stored
    │       │
-   │       └── INDOORS ── 3 photos, ≥10 min apart, each a different random pose
-   │                      (start it late and the maths makes it impossible: 2 gaps
-   │                       of 10 min don't fit in the 8 minutes you left yourself)
+   │       └── INDOORS ── say 3 lines, 1 minute apart, each a different sentence
+   │                      chosen by the app (start it late and the maths makes it
+   │                      impossible: 2 gaps of a minute do not fit in the time left)
    │
    └── deadline hit, mission incomplete
            │
-           └──  LOCKED OUT — strike 1: 1 h · strike 2: 2 h · 3: 4 h · 4: 6 h
-                              5: 9 h · 6: 12 h · 7: 18 h · 8+: 24 h. Capped, yours to edit.
-                              Only a phone call gets through. Nothing unlocks it early.
+           └──  LOCKED OUT — strike 1: 1 h · strike 2: 2 h · … · strike 10: 10 h.
+                              Never tapped awake at all: 20 h, whatever your strike.
+                              Only a phone call gets through. Nothing unlocks it early,
+                              and the same alarm is re-armed when the time is served.
 ```
 
-Succeed once and the ladder resets to strike 1. Every strike is a doubling lesson; you can't grind the punishment away by failing twice in a week.
+Succeed once and the ladder resets to strike 1. Ten failed mornings is a ten-hour lock, and oversleeping the whole thing (never tapping awake) is the 20-hour one — the number you get when you were asleep through the alarm entirely, so there is no version of "just ignore it" that is cheaper than getting up.
 
 ### Why the mission is shaped like that
 
-- **Random pose, chosen by the app, held for 1.5 s.** A pose you pick yourself is a pose you can do half-asleep with the phone on the nightstand. The app picks it from 18 options (`src/logic.js → POSES`), deterministically seeded per episode+step — so refreshing the page does not reroll a pose you didn't want.
-- **3 indoor photos spaced 10 minutes apart.** This is the part Alarmy doesn't do. One photo proves you stood up; three, ten minutes apart, proves you stayed up. The accelerometer must also register movement between shots, so you can't prop the phone against the pillow and wave your hand at it.
-- **Outside: 1 scenery + 1 pose selfie.** Faster than the indoor route on purpose — going outside is the behaviour we actually want, so the app should make it the cheap option.
-- **Photos must come off the live camera.** There is no `<input type="file">` anywhere in the mission flow; a gallery photo from Tuesday does not exist as a code path.
+- **The sentence is chosen by the app.** You do not get to pick something you can mumble. `src/logic.js → LINES` holds 16 of them, and the one you owe is picked deterministically from the episode seed + step index, so refreshing the page cannot reroll you an easier line.
+- **3 lines, a minute apart, indoors.** This is the part Alarmy doesn't do. Saying one sentence proves you are awake; saying three, a minute apart, proves you stayed up. The mic must actually see audio while you speak — the recogniser will happily invent words in a silent room, so a peak below the noise floor is a rejection even when the transcript looks perfect.
+- **Outside: hold the camera on your surroundings for 12 s, then speak.** The scene has to be lit, contain sky or greenery, and change while you hold it (frame-to-frame difference on a 160px sample), and GPS is checked against where you slept if a fix is available. It is faster than the indoor route on purpose: going outside is the behaviour we actually want, so the app makes it the cheap option.
+- **No photographs. None.** There is no `<input type="file">`, no `toDataURL`, no `MediaRecorder` and no `captureStream` in the mission flow — the app cannot produce an image file even if it wanted to. Proof is a live view plus a spoken sentence, and what lands in the journal is a score, a mic peak and a duration.
+- **Getting out is charged, not allowed.** In the APK, unpinning the task, going home, or force-stopping the app is noticed by a leash loop in the foreground service: it bills the escape (15 min each, capped at 4 h by default) and drags the lock screen back to the front. Rebooting re-applies the remaining time from `BootReceiver`.
 - **No dismiss, no snooze, no back button.** While the ring or the lock is up, the takeover screen swallows `popstate`, blocks `Escape`, keeps a wake lock, and asks for fullscreen.
 
 ## Run it
@@ -103,14 +108,14 @@ styles.css            mobile-first dark UI
 serve.js              static server + Permissions-Policy, no deps
 sw.js                 offline shell; a push handler that explains why push isn't enough
 src/
-  logic.js            ⬅ PURE. Timings, mission shape, pose picks, lock ladder. No DOM.
+  logic.js            ⬅ PURE. Timings, mission shape, line picks, lock ladder. No DOM.
   engine.js           state machine: idle → ringing → mission → success | locked → idle
   db.js               IndexedDB (+ localStorage fallback). Episode is persisted on every
                       transition, so a reload resumes the same episode — or locks you out
                       if the deadline blew while the tab was closed.
   audio.js            synthesized siren (ramps 45%→100% over 8 s), vibration, wake lock
   camera.js           live-only capture, motion probe, geolocation
-  verify.js           checks: subject-in-frame, pose-held-steady, outdoors, movement
+  verify.js           checks on live pixels: outdoors (light/sky/green), movement
   ui.js               render helpers, hold-to-confirm, bottom sheets
   app.js              router + overlay priority (lock > ring > mission)
 views/                home · alarms · mission (ring + capture) · lock · journal · settings
@@ -135,7 +140,7 @@ docs/DEVICE_OWNER.md    provisioning the version with no exit button
 
 Verification is deliberately transparent: every check returns `{ ok, label, reasons[] }` and the reasons are printed on screen, so a rejection tells you *why* ("sky 0%, green 2%", "held 0.9 s, needed 1.5 s") instead of gaslighting you at 7 a.m.
 
-The pose check is heuristics (frame-diff steadiness + skin/edge signature), not real keypoint ML — offline, zero dependencies, and swappable: `registerPoseVerifier({ name: 'mediapipe', verify() {...} })` in `src/verify.js` replaces it without touching the state machine.
+The "you are outside" check is heuristics over a few downsampled frames (mean luminance, sky and green ratios, frame-to-frame motion), not a scene classifier — offline, zero dependencies, and deliberately not a photograph. The speech check compares the recogniser's transcript against the required sentence as a word subsequence, so reading the line in order passes and picking the words out of a hat does not. If you want a real keypoint model on top, `docs/NATIVE.md` documents where it would go; nothing in the current rules depends on it.
 
 ## Admin lease (the "test account")
 
@@ -147,7 +152,7 @@ Reach it: bottom nav → 🔐 Admin, or long-press the header. Factory PIN **`00
 | --- | --- |
 | **No lockouts** (default on) | A blown mission closes as `bypassed` — ring stops, no lock screen, **no strike**. Enforced in `engine._fail()` via `logic.shouldLockOut()` |
 | Auto-pass captures | Any frame is accepted; the checks still run and each rejection is stored, marked `autoPassed` |
-| Ignore photo spacing | Fire all 3 indoor shots in one second |
+| Ignore line gaps | Say all 3 indoor lines in one second |
 | Silent ring | Full takeover UI, no siren, no vibration |
 
 Plus a punishment lab (preview the lock screen for 30 s / 2 min without touching your record, grant or revoke real strikes, edit the ladder live), an episode sandbox (fire a rigged alarm, fast-forward the buzz / deadline / lockout, abort an episode), and state inspection + full export.
@@ -165,10 +170,10 @@ Read these before you trust it with your job. Items 1–2 are fixed by the APK; 
 1. **A page cannot lock the OS.** The browser lockout covers the window; you can close the tab, or clear site data, and the record is gone. The APK fixes the *covering* part with `startLockTask()`, but a side-loaded app always keeps Android's "Unpin" affordance — only `adb shell dpm set-device-owner` removes it ([docs/DEVICE_OWNER.md](docs/DEVICE_OWNER.md)).
 2. **In a browser, alarms only fire while the app is alive.** Chrome throttles background timers; there is no web API for an exact scheduled wake-up. The APK uses `AlarmManager.setAlarmClock` + a foreground service, which is the whole reason to install it. A browser can approximate it only if the tab/PWA stays open with the screen on (which is why the ring screen holds a wake lock).
 3. **iOS Safari** gives no vibration API, no geolocation background access, and kills web audio unless the tab is foregrounded. Fine for testing the flow, unreliable as an actual alarm clock.
-4. **`testMode` (Test mode in Settings) relaxes the pose, movement and outdoors checks** so the loop is drivable from a laptop or an iframe with no camera. Every shot taken in that mode is flagged `simulated` in your journal, and if you want the honest version: turn it off and test on a phone.
+4. **`testMode` (Test mode in Settings) relaxes the movement and outdoors checks and lets a line be simulated** so the loop is drivable from a laptop or an iframe with no camera or mic. Every proof taken in that mode is flagged `simulated` in your journal, and the lock screen says so. If you want the honest version: turn it off and test on a phone.
 5. **`Panic release` is off by default.** Turning it on adds a 5-second hold on the lock screen that frees you — and logs a strike against you, because "I needed my phone" and "I wanted my phone" look identical at 7 a.m. Turn it on if you have kids, a medical need, or a job that cannot wait an hour.
 
-Everything is stored on-device. There is no server, no account, and no analytics; photos never leave IndexedDB.
+Everything is stored on-device. There is no server, no account, and no analytics. There is also nothing image-shaped to leak: no photograph is ever taken, and no audio is written to disk — the microphone is opened, measured for a few seconds, and closed.
 
 ## Settings that change the shape of the morning
 
@@ -176,8 +181,12 @@ Everything is stored on-device. There is no server, no account, and no analytics
 | --- | --- | --- |
 | `ringMinutes` | 5 | continuous buzz before it switches to nag-bursts |
 | `missionWindowMinutes` | 30 | hard deadline from the first buzz |
-| `insidePhotos` / `insideSpacingMinutes` | 3 / 10 | indoor mission size and photo spacing |
-| `outsidePoseSelfies` | 1 | pose selfies required after the outdoor proof shot |
+| `insideLines` / `insideLineGapMinutes` | 3 / 1 | indoor mission size and the gap between lines |
+| `outsideSceneSeconds` / `outsideLines` | 12 / 2 | how long the surroundings are held, and how many lines after it |
+| `speechMatch` / `micLevelMin` | 0.6 / 0.03 | share of the sentence that must be heard, and the noise floor |
+| `neverWokeLockHours` | 20 | the lock for oversleeping the window without tapping awake |
+| `reArmAfterLockout` | true | the same alarm comes back when the lockout is served |
+| `escapePenaltyMinutes` / `escapePenaltyCapMinutes` | 15 / 240 | price of unpinning / going home / rebooting |
 | `lockHoursCurve` | 1,2,4,6,9,12,18,24 | hours locked, indexed by consecutive strikes |
 | `maxLockHours` | 24 | ceiling |
 | `escalationNagAfterRing` | on | keep bursting after the 5-minute buzz |

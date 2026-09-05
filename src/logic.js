@@ -4,27 +4,85 @@
 // here so it can be reasoned about (and tested) without a browser.
 // ---------------------------------------------------------------------------
 
-/** The pose library. App picks one per required photo; you must perform it. */
-export const POSES = [
-  { id: 'hands-on-head', emoji: '🙌', label: 'Hands flat on top of your head, elbows out' },
-  { id: 'superhero', emoji: '🦸', label: 'Fists on hips, chest puffed, chin up' },
-  { id: 'trex', emoji: '🦖', label: 'T-rex arms: elbows tucked, clawed fingers at your chest' },
-  { id: 'cheek-frame', emoji: '🪞', label: 'One hand on your cheek, fingers spread wide' },
-  { id: 'duck-face', emoji: '🐥', label: 'Maximum pout, head tilted ~20 degrees' },
-  { id: 'deep-think', emoji: '🤔', label: 'Index finger on chin, brow furrowed, head down' },
-  { id: 'wide-eyes', emoji: '😳', label: 'Eyes as wide as they physically go, mouth shut' },
-  { id: 'double-flex', emoji: '💪', label: 'Double bicep flex, both arms up and squeezed' },
-  { id: 'zombie', emoji: '🧟', label: 'Both arms straight forward, jaw completely slack' },
-  { id: 'point', emoji: '👉', label: 'Index finger extended straight at the camera' },
-  { id: 'peace-eye', emoji: '✌️', label: 'Peace sign covering exactly one eye' },
-  { id: 'shrug', emoji: '🤷', label: 'Shoulders shoved up to your ears, palms open' },
-  { id: 'heart-above', emoji: '🫶', label: 'Hands clasped into a heart above your head' },
-  { id: 'salute', emoji: '🫡', label: 'Fingertips snapped to your eyebrow, palm down' },
-  { id: 'rooster', emoji: '🐓', label: 'Hands on hips, one knee lifted off the floor' },
-  { id: 'ghost', emoji: '👻', label: 'Arms high, fingers splayed, mouth open in a silent scream' },
-  { id: 'polite-yawn', emoji: '🥱', label: 'One hand over your mouth, the other over your eyes' },
-  { id: 'trophy', emoji: '🏆', label: 'Both fists punched to the ceiling like you just won' },
+/**
+ * The lines the app makes you say. Spoken proof replaces photographs: nothing is
+ * captured, stored or uploaded — recognition runs, the words are compared, and
+ * only the score survives (in the journal, as a number).
+ *
+ * Deliberately varied phonetically, and all of them are things you would not
+ * say while half asleep, which is the actual filter.
+ */
+export const LINES = [
+  { id: 'l01', text: 'The sun is up and I am making coffee right now' },
+  { id: 'l02', text: 'Today I will be on time and nobody can stop me' },
+  { id: 'l03', text: 'One two three four five, my brain is awake' },
+  { id: 'l04', text: 'Left foot on the floor, right foot on the floor' },
+  { id: 'l05', text: 'I promised myself I would actually get up' },
+  { id: 'l06', text: 'The quick brown fox jumps over the lazy dog' },
+  { id: 'l07', text: 'Kitchen window, cold glass, grey sky outside' },
+  { id: 'l08', text: 'Nine times eight is seventy two, check the maths' },
+  { id: 'l09', text: 'I am standing up in the room where I slept' },
+  { id: 'l10', text: 'Shower, teeth, shirt, shoes, keys, out the door' },
+  { id: 'l11', text: 'This alarm cost me my phone for the morning' },
+  { id: 'l12', text: 'Yellow bus at the corner turning twice' },
+  { id: 'l13', text: 'My name is written in the sky and it is early' },
+  { id: 'l14', text: 'Give me twenty minutes and I will be dressed' },
+  { id: 'l15', text: 'The floor is cold and that is the point' },
+  { id: 'l16', text: 'Repeat after me: I am awake and I mean it' },
+  { id: 'l17', text: 'Six sheep jumped over the wooden gate' },
+  { id: 'l18', text: 'Every failed morning costs me another hour' },
+  { id: 'l19', text: 'Open the curtain and count three cars outside' },
+  { id: 'l20', text: 'I will not negotiate with myself at this hour' },
+  { id: 'l21', text: 'Red cup, blue spoon, one plate on the table' },
+  { id: 'l22', text: 'Twenty twenty six, the fifth of September, morning' },
+  { id: 'l23', text: 'Say it loud: the phone stays locked until I finish' },
+  { id: 'l24', text: 'Boots by the door, bag on the chair, keys in my hand' },
 ]
+
+/** Word-count floor for a line to be recognisable as "spoken on purpose". */
+export const MIN_LINE_WORDS = 5
+
+export function normalizeWords(text) {
+  return String(text ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9' ]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+}
+
+/**
+ * Transcript scoring, pure so it can be unit tested: how much of the required
+ * line did the recognition actually hear, and how much junk did it hear.
+ *
+ * Subsequence-first rather than set-overlap: reading the line out loud in order
+ * passes, while mumbling the individual words in a random order does not.
+ */
+export function scoreTranscript(required, spoken) {
+  const want = normalizeWords(required)
+  const got = normalizeWords(spoken)
+  if (!want.length) return { score: 0, matched: [], missing: [], extra: 0, words: 0 }
+  // longest common subsequence over the word lists
+  let prev = new Array(got.length + 1).fill(0)
+  for (let i = 1; i <= want.length; i++) {
+    const cur = new Array(got.length + 1).fill(0)
+    for (let j = 1; j <= got.length; j++) {
+      cur[j] = want[i - 1] === got[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], cur[j - 1])
+    }
+    prev = cur
+  }
+  const hits = prev[got.length]
+  const matchedSet = new Set()
+  // which required words were found at all (for the "you skipped X" copy)
+  const gotSet = new Set(got)
+  const missing = want.filter((w) => (gotSet.has(w) ? (matchedSet.add(w), false) : w))
+  return {
+    score: want.length ? hits / want.length : 0,
+    matched: want.filter((w) => gotSet.has(w)),
+    missing,
+    extra: Math.max(0, got.length - hits),
+    words: got.length,
+  }
+}
 
 export const DEFAULT_SETTINGS = {
   // --- alarm behaviour -----------------------------------------------------
@@ -34,15 +92,32 @@ export const DEFAULT_SETTINGS = {
 
   // --- the rules -----------------------------------------------------------
   ringMinutes: 5,            // how long it buzzes continuously, no way to dismiss
-  missionWindowMinutes: 30,  // hard deadline: mission done, or you lose the phone
-  insidePhotos: 3,           // INSIDE mission: N shots, spaced apart, each a new pose
-  insideSpacingMinutes: 10,  // minimum gap between those shots
-  outsidePoseSelfies: 1,     // OUTSIDE mission: 1 scenery shot + N pose selfies
+  // Twenty minutes from the first buzz to "prove you are up". The number is the
+  // rule you asked for: blow it and the lockout is the 20-hour one.
+  missionWindowMinutes: 20,
+
+  // --- the proofs (no photographs anywhere in this app) --------------------
+  insideLines: 3,            // IN: say N lines
+  insideLineGapMinutes: 1,   // ...with a minute between each one
+  outsideSceneSeconds: 12,   // OUT: hold the camera on your surroundings
+  outsideLines: 2,           // ...then say N lines
+  sceneMotionMin: 25,        // the scene must actually move (you walking, not a photo of a wall)
+  micLevelMin: 0.03,         // peak mic level while speaking: kills "silence recognised as words"
+  speechMatch: 0.6,          // fraction of the required words the recogniser must hear
+  lineEcho: true,            // show the transcript back while you speak
 
   // --- the punishment ------------------------------------------------------
   // Hours locked, indexed by consecutive failed wake-ups (strike 1, 2, 3...).
-  lockHoursCurve: [1, 2, 4, 6, 9, 12, 18, 24],
-  maxLockHours: 24,
+  // Ten strikes, one hour each: the tenth failed morning costs 10 hours.
+  lockHoursCurve: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  maxLockHours: 20,
+  // You never even tapped "I'M AWAKE" inside the window: asleep through it.
+  neverWokeLockHours: 20,
+  // After a lockout expires, the same alarm is re-armed for the next morning —
+  // the debt does not get written off because you served the time.
+  reArmAfterLockout: true,
+  escapePenaltyMinutes: 15,  // each detected unpin/force-stop attempt adds this
+  escapePenaltyCapMinutes: 240,
   escalationNagAfterRing: true, // after ringMinutes, nag in bursts until deadline
   strikeGraceResetsAfterSuccess: true,
 
@@ -58,6 +133,9 @@ export const DEFAULT_SETTINGS = {
   // --- escape hatches (see README: a real hard lock needs care) ------------
   panicReleaseEnabled: false, // hold-to-release button on the lock screen
   panicReleaseCostsStrike: true,
+  // Keeps the screen painted on the lockout and re-pins from the notification
+  // shade/recents. Only meaningful in the APK; harmless in a browser.
+  lockShadeGuard: true,
 
   // --- native (APK) behaviour ----------------------------------------------
   // An alarm that fired while the app was closed still costs you the lockout.
@@ -93,8 +171,21 @@ export function missionWindowMs(settings) {
   return effectiveMinutes(settings.missionWindowMinutes, settings) * MIN
 }
 
+/** Gap required between two consecutive proofs (default 1 minute). */
 export function spacingMs(settings) {
-  return effectiveMinutes(settings.insideSpacingMinutes, settings) * MIN
+  return effectiveMinutes(settings.insideLineGapMinutes ?? settings.insideSpacingMinutes ?? 1, settings) * MIN
+}
+
+/** How long the surroundings must be held to the camera. */
+export function sceneHoldMs(settings) {
+  const secs = settings.outsideSceneSeconds ?? 12
+  return (settings.demoTiming ? secs / DEMO_DIVISOR : secs) * 1000
+}
+
+export function missionTitle(mode, settings) {
+  return mode === 'outside'
+    ? `Show where you are for ${settings.outsideSceneSeconds ?? 12} s, then say ${(settings.outsideLines ?? 2)} lines`
+    : `Say ${settings.insideLines ?? 3} lines, ${(settings.insideLineGapMinutes ?? 1)} min apart`
 }
 
 /** HH:MM:SS (or MM:SS) countdown text. */
@@ -206,31 +297,36 @@ export function minutesToDeadline(nowMs, episode) {
  * to get up *and* start immediately.
  */
 export function insideMissionPossible(nowMs, episode, settings) {
-  const needed = (settings.insidePhotos - 1) * spacingMs(settings)
+  const needed = ((settings.insideLines ?? 3) - 1) * spacingMs(settings)
   return episode.missionDeadlineAt - nowMs >= needed
 }
 
 /** Why inside mode is locked, for the UI copy. */
 export function insideMissionBlockedReason(nowMs, episode, settings) {
-  const needed = (settings.insidePhotos - 1) * spacingMs(settings)
-  const short = needed - (episode.missionDeadlineAt - nowMs)
-  return `You started too late — ${settings.insidePhotos} photos spaced ${settings.insideSpacingMinutes} min apart need ${formatDuration(needed)}, and you only have ${formatDuration(episode.missionDeadlineAt - nowMs)} left. Outside mission only.`
+  const needed = ((settings.insideLines ?? 3) - 1) * spacingMs(settings)
+  return `Too late for that one — ${(settings.insideLines ?? 3)} lines ${(settings.insideLineGapMinutes ?? 1)} min apart need ${formatDuration(needed)} and you have ${formatDuration(episode.missionDeadlineAt - nowMs)} left. Go outside instead.`
 }
 
 /** Required steps for the chosen mode, in order. */
 export function missionSteps(mode, settings) {
+  const lines = (n, first) =>
+    Array.from({ length: Math.max(1, n) }, (_, i) => ({
+      kind: 'voice',
+      label: `Line ${i + 1} of ${Math.max(1, n)}`,
+      gap: i === 0 && first ? false : true,
+    }))
   if (mode === 'outside') {
-    const steps = [{ kind: 'outside-scenery', label: 'Proof you are outside', poseId: null }]
-    for (let i = 0; i < Math.max(1, settings.outsidePoseSelfies); i++) {
-      steps.push({ kind: 'pose-selfie', label: `Pose selfie ${i + 1}`, poseId: null })
-    }
-    return steps
+    // Scene first: it is the proof that the walk happened. The lines come after,
+    // with no gap between them — by then you are up and moving.
+    return [{ kind: 'scene', label: 'Show me where you are', gap: false }, ...lines(settings.outsideLines ?? 2, true)]
   }
-  return Array.from({ length: settings.insidePhotos }, (_, i) => ({
-    kind: 'pose-selfie',
-    label: `Indoor proof ${i + 1} of ${settings.insidePhotos}`,
-    poseId: null,
-  }))
+  return lines(settings.insideLines ?? 3, true)
+}
+
+/** Which step needs the spacing wait before it can be attempted. */
+export function stepNeedsGap(step, index) {
+  if (!step) return false
+  return index > 0 && (step.gap ?? true)
 }
 
 /** Which step index is still outstanding. */
@@ -274,7 +370,7 @@ export function normalizePin(input) {
   return digits.length >= 4 ? digits.slice(0, 8) : null
 }
 
-/** How long each pose must be held while the shutter counts down. */
+/** Legacy name kept for the settings/tests: how long a proof is "held". */
 export const POSE_HOLD_MS = 1500
 
 /**
@@ -286,18 +382,26 @@ export function episodeSeed(episode) {
 }
 
 /**
- * Deterministic pose pick: seeded from the episode + step index so a reload
- * can't be used to reroll a pose you don't want to do.
+ * Deterministic line pick: seeded from the episode + step index, so reloading
+ * the app cannot reroll a sentence you would rather not say. This is the same
+ * trick the photo missions used, minus the camera.
  */
+export function lineForStep(seed, stepIndex) {
+  const rng = mulberry32(hashString(`${seed}#line#${stepIndex}`))
+  return LINES[Math.floor(rng() * LINES.length)]
+}
+
+/** @deprecated pose era kept so old journal rows still render a label. */
 export function poseForStep(seed, stepIndex) {
-  const rng = mulberry32(hashString(`${seed}#${stepIndex}`))
-  return POSES[Math.floor(rng() * POSES.length)]
+  return lineForStep(seed, stepIndex)
 }
 
 /** Minimum wait after the previous shot before the next one counts. */
 export function earliestNextCaptureAt(episode, settings) {
   const caps = episode?.captures ?? []
-  if (episode?.mode !== 'inside') return 0
+  const steps = missionSteps(episode?.mode, settings)
+  const next = steps[caps.length]
+  if (!next || !stepNeedsGap(next, caps.length)) return 0
   if (caps.length === 0) return episode.startedMissionAt ?? episode.firedAt
   return caps[caps.length - 1].at + spacingMs(settings)
 }
@@ -307,16 +411,33 @@ export function earliestNextCaptureAt(episode, settings) {
 // ---------------------------------------------------------------------------
 
 /**
- * strike (1-based) ⇒ how many MINUTES the phone is locked.
- * testMode/demoTiming compress it so the loop is testable in seconds/minutes.
+ * strike (1-based) ⇒ MINUTES locked. The curve is 1 h per strike up to the tenth
+ * failed morning, and there is one rule above the ladder: if you never even
+ * tapped "I'M AWAKE" inside the window, you were asleep through the whole thing,
+ * and that costs `neverWokeLockHours` (20 h) regardless of your strike count.
  */
-export function lockMinutesFor(strike, settings) {
+export function lockMinutesFor(strike, settings, { neverWoke = false } = {}) {
+  if (neverWoke) {
+    const h = Math.min(settings.neverWokeLockHours ?? 20, settings.maxLockHours ?? 24)
+    // Compressed exactly like the ladder, otherwise a demo build would really
+    // lock the phone for twenty hours after one overslept morning.
+    if (settings.testMode) return Math.max(1, Math.round(h))
+    if (settings.demoTiming) return (h * 60) / DEMO_DIVISOR
+    return h * 60
+  }
   const curve = settings.lockHoursCurve?.length ? settings.lockHoursCurve : [1]
   const hours = curve[Math.min(Math.max(strike, 1), curve.length) - 1] ?? curve.at(-1)
   const capped = Math.min(hours, settings.maxLockHours ?? hours)
   if (settings.testMode) return Math.max(1, Math.round(capped)) // hours → minutes
-  if (settings.demoTiming) return capped * 60 / DEMO_DIVISOR // hours → seconds-ish
+  if (settings.demoTiming) return (capped * 60) / DEMO_DIVISOR // hours → seconds-ish
   return capped * 60
+}
+
+/** Escape penalty: an unpin or a force-stop during a lockout costs more time. */
+export function escapePenaltyMs(settings) {
+  const mins = settings.escapePenaltyMinutes ?? 15
+  const cap = settings.escapePenaltyCapMinutes ?? 240
+  return Math.min(mins, cap) * MIN
 }
 
 export function lockLabel(strike, settings) {
@@ -446,11 +567,16 @@ export function summarizeEvents(events) {
  * Strike count the app should use for the *next* lockout, derived from the log
  * so a storage reload can't reset your record by refreshing the page.
  */
+/**
+ * Consecutive `locked` events since the last reset. Two things clear the ladder:
+ * a real `woke`, and an explicit `strike_reset` (the admin console forgives
+ * strikes that way, so a test run does not have to pretend it was a win).
+ */
 export function strikesFromEvents(events) {
   let n = 0
   for (const e of [...events].reverse()) {
     if (e.type === 'locked') n++
-    else if (e.type === 'woke') break
+    else if (e.type === 'woke' || e.type === 'strike_reset') break
   }
   return n
 }

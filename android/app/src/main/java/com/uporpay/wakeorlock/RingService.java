@@ -32,6 +32,18 @@ public class RingService extends Service {
 
     public static final String ACTION_START = "wol.RING_START";
     public static final String ACTION_STOP = "wol.RING_STOP";
+    /**
+     * Guard mode: the service that keeps a lockout alive without the activity.
+     *
+     * A pinned task can be unpinned, the app can be swiped away, and a reboot
+     * clears every in-memory timer. So while a lockout runs, this loop wakes every
+     * 12 seconds, checks whether the pin still holds, charges an escape if it
+     * does not, re-applies the device-owner restrictions, and pulls the lock
+     * screen back to the front. That is what makes "even if you reboot your phone"
+     * true: BootReceiver starts this service again with the deadline still unpaid.
+     */
+    public static final String ACTION_LEASH = "wol.LEASH";
+    public static final String ACTION_LEASH_STOP = "wol.LEASH_STOP";
     public static final String EXTRA_LABEL = "label";
     public static final int NOTIF_ID = 4712;
 
@@ -39,6 +51,23 @@ public class RingService extends Service {
     private PowerManager.WakeLock wakeLock;
     private Thread vibeThread;
     private volatile boolean ringing;
+    private volatile boolean guarding;
+    private final android.os.Handler guardHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable guardLoop = new Runnable() {
+        @Override public void run() {
+            if (!guarding) return;
+            if (LockGuard.remainingMs(RingService.this) <= 0L) {
+                stopGuard();
+                return;
+            }
+            if (LockGuard.pinIsLoose(RingService.this)) {
+                LockGuard.noteEscape(RingService.this);
+                LockGuard.reopen(RingService.this);
+            }
+            LockGuard.applyRestrictions(RingService.this, true);
+            guardHandler.postDelayed(this, 12_000L);
+        }
+    };
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -51,7 +80,19 @@ public class RingService extends Service {
         String action = intent == null ? ACTION_START : intent.getAction();
         if (ACTION_STOP.equals(action)) {
             stopEverything();
-            stopSelf();
+            // The ring can stop while a lockout still runs, so the leash decides
+            // whether the process is allowed to die.
+            if (!guarding) stopSelf();
+            return START_NOT_STICKY;
+        }
+        if (ACTION_LEASH.equals(action)) {
+            startForegroundNice(getString(R.string.app_name) + " — lockout running");
+            startGuard();
+            return START_STICKY;
+        }
+        if (ACTION_LEASH_STOP.equals(action)) {
+            stopGuard();
+            if (!ringing) stopSelf();
             return START_NOT_STICKY;
         }
         String label = intent == null ? "" : intent.getStringExtra(EXTRA_LABEL);
@@ -162,8 +203,20 @@ public class RingService extends Service {
         } catch (Exception ignored) {}
     }
 
+    private void startGuard() {
+        if (guarding) return;
+        guarding = true;
+        guardHandler.postDelayed(guardLoop, 4_000L);
+    }
+
+    private void stopGuard() {
+        guarding = false;
+        guardHandler.removeCallbacks(guardLoop);
+    }
+
     private void stopEverything() {
         ringing = false;
+        stopGuard();
         if (vibeThread != null) {
             vibeThread.interrupt();
             vibeThread = null;
@@ -196,5 +249,19 @@ public class RingService extends Service {
     public void onDestroy() {
         stopEverything();
         super.onDestroy();
+    }
+
+    /**
+     * START_STICKY plus a re-check on restart: if Android brings this service back
+     * after a kill, the guard comes back with it, because the deadline in prefs is
+     * the truth and it is still running.
+     */
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        if (LockGuard.remainingMs(this) > 0L) {
+            LockGuard.noteEscape(this);
+            LockGuard.reopen(this);
+        }
+        super.onTaskRemoved(rootIntent);
     }
 }

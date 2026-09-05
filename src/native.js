@@ -131,6 +131,35 @@ export const native = {
     return call('consumeLaunch', {}, { alarmId: null }).then((r) => r?.alarmId ?? null)
   },
 
+  /** System speech recogniser. The WebView has no Web Speech API, so the APK
+   * has to borrow the platform one; both paths return { transcript }. */
+  recognizeSpeech({ lang = 'en-US', maxSeconds = 12 } = {}) {
+    return call('listen', { language: lang, timeoutMs: maxSeconds * 1000 }, { error: 'no-native' })
+  },
+
+  /** Keep the app pinned while a lockout runs (APK only, no-op in a browser). */
+  startLeash(penaltyMs) {
+    return call('startLeash', { penaltyMs: penaltyMs ?? 0 }, null)
+  },
+
+  stopLeash() {
+    return call('stopLeash', {}, null)
+  },
+
+  requestMic() {
+    return call('requestMicrophone', {}, { granted: false })
+  },
+
+  /**
+   * "Display over other apps". With it, the leash can put the lock screen back on
+   * top of whatever you just opened; without it Android only lets us re-open the
+   * task when a background activity start is allowed. Either way the attempt is
+   * billed, so this is about how annoying escape *is*, not whether it is possible.
+   */
+  requestOverlay() {
+    return call('requestOverlay', {}, { granted: false })
+  },
+
   startRing(label) {
     return call('startRing', { label }, null)
   },
@@ -139,8 +168,8 @@ export const native = {
     return call('stopRing', {}, null)
   },
 
-  engageLock(untilEpochMs, reason) {
-    return call('engageLock', { until: untilEpochMs, reason: reason ?? '' }, null)
+  engageLock(untilEpochMs, reason, escapePenaltyMs) {
+    return call('engageLock', { until: untilEpochMs, reason: reason ?? '', escapePenaltyMs: escapePenaltyMs ?? 0 }, null)
   },
 
   releaseLock() {
@@ -167,33 +196,6 @@ export const native = {
     return call('openNotificationSettings', {}, null)
   },
 
-  /** Live-only photo through CameraX. No gallery path exists in this call set. */
-  async capturePhoto({ facing = 'user', quality = 72 } = {}) {
-    const Cam = bridge()?.Camera ?? state.Camera
-    if (!Cam?.getPhoto) return { ok: false, error: 'no-native-camera' }
-    try {
-      const perms = Cam.checkPermissions ? await Cam.checkPermissions() : { camera: 'granted' }
-      if (perms?.camera && perms.camera !== 'granted' && Cam.requestPermissions) {
-        const asked = await Cam.requestPermissions()
-        if (asked?.camera !== 'granted') return { ok: false, error: 'camera-denied' }
-      }
-      const photo = await Cam.getPhoto({
-        quality,
-        allowEditing: false,
-        resultType: 'dataUrl',
-        saveToGallery: false, // evidence must not litter the gallery, and the
-                               // gallery must not be a source of evidence
-        direction: facing === 'environment' ? 1 : 0, // CameraSource: 0=rear? see README note
-        correctOrientation: true,
-      })
-      if (!photo?.dataUrl) return { ok: false, error: 'no-data' }
-      return { ok: true, dataUrl: photo.dataUrl, width: photo.width, height: photo.height, exif: photo.exif ?? null }
-    } catch (err) {
-      // user cancelled the shutter → not an error worth a toast
-      if (err?.message?.toLowerCase?.().includes('cancel')) return { ok: false, error: 'cancelled' }
-      return { ok: false, error: String(err?.message ?? err) }
-    }
-  },
 
   async position({ timeoutMs = 6000 } = {}) {
     const Geo = bridge()?.Geolocation ?? state.Geolocation

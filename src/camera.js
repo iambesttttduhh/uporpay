@@ -1,17 +1,17 @@
 // ---------------------------------------------------------------------------
-// camera.js — live capture, from the browser stream or the APK's own camera.
+// camera.js — live preview + tiny scene analysis. No photographs: the mission
+// reads a 160px slice of the stream a few times a second and drops it straight
+// away. There is no data URL, no blob, no file input and no recorder in here,
+// so there is nothing to upload and nothing to keep.
 //
-// The anti-cheat principle: there is no file input anywhere in the mission
-// flow. A shot only exists if it was drawn from a live getUserMedia stream in
-// this second, which kills the "upload a photo from last Tuesday" exploit.
-// In `testMode` we additionally allow a synthetic shot so the whole loop is
-// demoable in environments where the camera is blocked (e.g. an iframe).
+// Why it is built this way: the point of the outside mission is that you are
+// standing in the room holding the phone up, not that you own a JPEG. The
+// checks therefore run on live pixels (brightness, sky/green, movement) and on
+// the microphone, and only the summary numbers are journalled.
 // ---------------------------------------------------------------------------
 
 import { native } from './native.js'
-
-const CAPTURE_MAX_W = 1280
-const CAPTURE_QUALITY = 0.72
+import { analyzeImageData } from './verify.js'
 
 export async function cameraReport() {
   const secure = typeof window !== 'undefined' && window.isSecureContext
@@ -39,34 +39,76 @@ export async function cameraReport() {
 }
 
 /**
- * @param {{facing?: 'user'|'environment'}} opts
- * @returns {Promise<{stream: MediaStream, stop: () => void}>}
+ * Never throws. A mission screen that crashes because a permission is missing is
+ * a mission screen you can escape by denying the permission, so failure is data:
+ * { stream, stop } on success, { error, denied } on not.
+ *
+ * The constraint is deliberately small (640×480). Nothing here needs 1280: the
+ * scene checks look at luminance, sky/green ratios and frame-to-frame movement,
+ * all of which survive a 160px sample — and a phone WebView decodes a fifth of
+ * the pixels, which is the difference between smooth and stuttery.
  */
-export async function openCamera({ facing = 'user' } = {}) {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw Object.assign(new Error('camera-unsupported'), { code: 'unsupported' })
-  }
+export async function openCamera({ facing = 'user', ideal = { w: 640, h: 480 } } = {}) {
+  if (!navigator.mediaDevices?.getUserMedia) return { error: 'unsupported' }
   let stream
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 960 } },
+      video: { facingMode: { ideal: facing }, width: { ideal: ideal.w }, height: { ideal: ideal.h } },
       audio: false,
     })
   } catch (err) {
-    // Some devices ignore facingMode and hard-fail; retry without it.
     if (err?.name === 'OverconstrainedError' || err?.name === 'NotReadableError') {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      } catch (err2) {
+        return { error: err2?.name === 'NotAllowedError' ? 'denied' : 'camera-error', denied: err2?.name === 'NotAllowedError' }
+      }
     } else {
-      throw Object.assign(new Error(err?.name === 'NotAllowedError' ? 'camera-denied' : 'camera-error'), {
-        code: err?.name === 'NotAllowedError' ? 'denied' : 'error',
-        cause: err,
-      })
+      return {
+        error: err?.name === 'NotAllowedError' ? 'denied' : err?.name === 'NotFoundError' ? 'no-camera' : 'camera-error',
+        denied: err?.name === 'NotAllowedError',
+      }
     }
   }
   const stop = () => {
     for (const t of stream.getTracks()) t.stop()
   }
   return { stream, stop, track: stream.getVideoTracks()[0] }
+}
+
+/** The analysis canvas: one reusable 160×120 read, sized to whatever the stream is. */
+let smallCv = null
+export function grabSmall(video, w = 160) {
+  const vw = video.videoWidth || w
+  const vh = video.videoHeight || Math.round((w * 3) / 4)
+  const h = Math.max(16, Math.round((w * vh) / vw))
+  if (!smallCv) smallCv = document.createElement('canvas')
+  smallCv.width = w
+  smallCv.height = h
+  const ctx = smallCv.getContext('2d', { willReadFrequently: true })
+  ctx.drawImage(video, 0, 0, w, h)
+  return ctx.getImageData(0, 0, w, h)
+}
+
+/** Scene statistics for the "show me where you are" step (same maths, no photo). */
+export function sceneStatsOf(imageData) {
+  return analyzeImageData(imageData)
+}
+
+/** Frame-to-frame difference as a movement signal for the scene hold. */
+export function sceneMotionOf(a, b) {
+  if (!a || !b || a.width !== b.width || a.height !== b.height) return 0
+  const x = a.data
+  const y = b.data
+  let sum = 0
+  const stride = 4 * 4 // sample every 4th pixel: 160×120 → ~1200 reads per sample
+  const n = Math.min(x.length, y.length)
+  let count = 0
+  for (let i = 0; i < n; i += stride) {
+    sum += Math.abs(x[i] - y[i]) + Math.abs(x[i + 1] - y[i + 1]) + Math.abs(x[i + 2] - y[i + 2])
+    count++
+  }
+  return count ? (sum / count) * (4 / 3) : 0
 }
 
 /** Wait until the video element is actually delivering frames. */
@@ -85,142 +127,9 @@ export function waitForStream(video, timeoutMs = 4000) {
   })
 }
 
-/**
- * Draw the current video frame into an offscreen canvas and return
- * a data URL + a pixel sample used by the verifiers.
- */
-export function grabFrame(video) {
-  const vw = video.videoWidth || 640
-  const vh = video.videoHeight || 480
-  const scale = Math.min(1, CAPTURE_MAX_W / vw)
-  const w = Math.max(16, Math.round(vw * scale))
-  const h = Math.max(16, Math.round(vh * scale))
-
-  const canvas = document.createElement('canvas')
-  canvas.width = w
-  canvas.height = h
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  ctx.drawImage(video, 0, 0, w, h)
-
-  const imageData = ctx.getImageData(0, 0, w, h)
-  return {
-    dataUrl: canvas.toDataURL('image/jpeg', CAPTURE_QUALITY),
-    imageData,
-    width: w,
-    height: h,
-    live: true,
-  }
-}
-
-/**
- * Synthetic capture for environments where the camera is unavailable and the
- * user has explicitly opted into test mode. It stamps the frame with the pose
- * and clock so screenshots of it are still evidence in the history log.
- */
-/**
- * The APK's fallback shutter: CameraX takes the still, we composite it onto the
- * same capture canvas so the verifier sees the same pixel geometry as a live
- * frame. Returns null on a cancel (that is not an error — you are still holding
- * the mission), or on any native failure so the caller can fall through.
- *
- * Note what this path cannot do: there is no continuous preview, so the hold
- * steadiness check has no baseline to compare against. The pose, subject and
- * outdoors checks still run on real pixels, and the 10-minute spacing rule —
- * the part that actually keeps you out of bed — is enforced by the clock, not
- * by the frame.
- */
-export async function nativeStill({ facing = 'user', poseOverlay = null } = {}) {
-  const shot = await native.capturePhoto({ facing })
-  if (!shot?.ok) return { error: shot?.error ?? 'camera-failed' }
-  const img = await decodeImage(shot.dataUrl)
-  if (!img) return { error: 'decode-failed' }
-  const scale = Math.min(1, CAPTURE_MAX_W / (img.naturalWidth || CAPTURE_MAX_W))
-  const w = Math.max(16, Math.round((img.naturalWidth || CAPTURE_MAX_W) * scale))
-  const h = Math.max(16, Math.round((img.naturalHeight || (w * 3) / 4) * scale))
-  const canvas = document.createElement('canvas')
-  canvas.width = w
-  canvas.height = h
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  // Cover-crop, exactly like the live preview, so the pose guide and the pixels
-  // describe the same framing.
-  const sw = img.naturalWidth || w
-  const sh = img.naturalHeight || h
-  const k = Math.max(w / sw, h / sh)
-  const dw = sw * k
-  const dh = sh * k
-  if (facing === 'user') {
-    ctx.translate(w, 0)
-    ctx.scale(-1, 1)
-  }
-  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh)
-  ctx.setTransform(1, 0, 0, 1, 0, 0)
-  if (poseOverlay?.path) drawPoseGuide(ctx, poseOverlay, w, h)
-  return {
-    dataUrl: canvas.toDataURL('image/jpeg', CAPTURE_QUALITY),
-    imageData: ctx.getImageData(0, 0, w, h),
-    width: w,
-    height: h,
-    live: true,
-    source: 'native-camera',
-    exif: shot.exif ?? null,
-  }
-}
-
-function decodeImage(src) {
-  return new Promise((resolve) => {
-    const img = new globalThis.Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => resolve(null)
-    img.src = src
-  })
-}
-
-/** Stick-figure guide for stills (the live path draws it on the preview instead). */
-function drawPoseGuide(ctx, pose, w, h) {
-  ctx.save()
-  ctx.strokeStyle = 'rgba(120,255,190,0.75)'
-  ctx.lineWidth = Math.max(2, w / 240)
-  ctx.setLineDash([w / 60, w / 90])
-  for (const seg of pose.path ?? []) {
-    ctx.beginPath()
-    ctx.moveTo(seg[0] * w, seg[1] * h)
-    ctx.lineTo(seg[2] * w, seg[3] * h)
-    ctx.stroke()
-  }
-  ctx.restore()
-}
-
-export function simulateFrame({ label = 'SIMULATED', pose = '', w = 640, h = 480 }) {
-  const canvas = document.createElement('canvas')
-  canvas.width = w
-  canvas.height = h
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  const g = ctx.createLinearGradient(0, 0, 0, h)
-  const bright = label.toLowerCase().includes('outside')
-  g.addColorStop(0, bright ? '#7ec8ff' : '#20242e')
-  g.addColorStop(1, bright ? '#d9f0c0' : '#0c0e13')
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, w, h)
-  ctx.fillStyle = bright ? '#04121f' : '#e8ecf5'
-  ctx.font = 'bold 30px system-ui, sans-serif'
-  ctx.fillText('SIMULATED CAPTURE', 24, 52)
-  ctx.font = '20px system-ui, sans-serif'
-  ctx.fillText(label, 24, 90)
-  ctx.fillText(pose || 'no pose', 24, 122)
-  ctx.fillText(new Date().toLocaleTimeString(), 24, h - 28)
-  return {
-    dataUrl: canvas.toDataURL('image/jpeg', CAPTURE_QUALITY),
-    imageData: ctx.getImageData(0, 0, w, h),
-    width: w,
-    height: h,
-    live: false,
-    simulated: true,
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Motion probe. The inside mission requires a real gap between shots; we also
-// ask for evidence you got out of bed and *moved* between them.
+// Motion probe. The mission wants evidence you got out of bed and *moved*:
+// gravity vector + tilt over the whole window, not just the last few frames.
 // ---------------------------------------------------------------------------
 
 export class MotionProbe {

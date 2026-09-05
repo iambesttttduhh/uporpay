@@ -110,11 +110,14 @@ Settings → **Android engine** shows what the OS actually granted you:
 - **The buzz keeps going during the mission** on Android (the service owns audio, so the ring is
   not stopped when you accept — the web build degrades to nag bursts instead). Completing the
   mission stops the service.
-- **Camera**: the live pose preview uses the WebView's `getUserMedia` when Android lets it work.
-  If it does not, the app silently switches each shot to the native CameraX shutter — real
-  pixels, no gallery path, and test mode stays *off*. The one thing that path cannot check is
-  hold-steadiness between frames, so pose geometry, subject, motion-free and the outdoor
-  signature still apply, and the 10-minute spacing rule is enforced by the clock.
+- **Camera**: the surroundings hold uses the WebView's `getUserMedia`, which Capacitor's
+  `BridgeWebChromeClient` answers by requesting `CAMERA` at runtime and then granting the
+  WebView's request. The stream is measured and dropped: no `ImageCapture`, no file, no gallery.
+  If it does not, the scene step says so inside the mission screen and offers two things: retry,
+  or switch to the inside mission (which needs only the microphone). It never offers to skip the
+  proof. There is no native shutter fallback any more and no `CameraX` dependency: the app cannot
+  produce an image file, which is the point. The spoken lines and the 1-minute gap are enforced by
+  the clock and by a measured mic level, not by pixels.
 - **GPS** for the outdoor check comes from the OS location client, so it works with the screen off.
 
 ## Release notes / versioning

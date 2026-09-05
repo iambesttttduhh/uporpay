@@ -42,7 +42,30 @@ before(async () => {
   await engine.setSettings({ demoTiming: true, testMode: true, soundOn: false, vibrateOn: false })
 })
 
-/** A synthetic video frame: bright, textured, skin-toned → passes heuristics. */
+/**
+ * A proof as the app now accepts it: a live scene read off the camera plus the
+ * words the recogniser heard. No image data is involved anywhere — nothing is
+ * captured, so nothing can be forged from a file.
+ */
+function sceneProof({ dark = false, still = false, indoors = false } = {}) {
+  return {
+    sceneStats: dark
+      ? { meanLum: 6, skyRatio: 0, greenRatio: 0, edgeEnergy: 1 }
+      : { meanLum: 132, skyRatio: 0.31, greenRatio: 0.12, edgeEnergy: 24 },
+    sceneMotion: still ? { integral: 2 } : { integral: 88, tilt: 30 },
+    location: indoors ? null : { lat: 28.62, lon: 77.21 },
+    sleepLocation: indoors ? null : { lat: 28.6139, lon: 77.209 },
+    peak: 0.42,
+    seconds: 12,
+  }
+}
+
+/** A line the microphone clearly heard. */
+function lineProof(text = 'I am standing up and I said the whole line out loud') {
+  return { transcript: text, score: 0.94, missing: [], peak: 0.42, seconds: 6.2, simulated: true }
+}
+
+/** A synthetic video frame: bright, textured → passes the heuristics. */
 function fakeFrame(w = 64, h = 48, { dark = false } = {}) {
   const data = new Uint8ClampedArray(w * h * 4)
   for (let i = 0; i < w * h; i++) {
@@ -84,17 +107,40 @@ test('every screen renders without throwing, empty and loaded', () => {
   for (const [name, view] of Object.entries(views)) {
     const html = view.render(state)
     assert.ok(typeof html === 'string' && html.length > 0, `${name} rendered empty`)
+    assert.ok(!html.includes('undefined'), `${name} printed "undefined"`)
+    assert.ok(!html.includes('NaN'), `${name} printed NaN`)
   }
+  // …and with an episode in every interesting phase, including a cleared one
+  // arriving between the snapshot and the render.
+  const loaded = { ...state, episode: fakeEpisode({ phase: 'mission', mode: 'inside' }) }
+  assert.match(views.mission.render(loaded), /SAY THIS OUT LOUD/)
+  assert.match(views.mission.render({ ...state, episode: null }), /No mission running/)
 })
 
 test('the ring screen offers exactly one way out, and it is not a dismiss', () => {
-  const html = views.mission.renderRing({ ...engine.snapshot(), episode: fakeEpisode() })
-  assert.match(html, /I'M AWAKE — START MISSION/)
-  assert.doesNotMatch(html, /data-snooze|data-dismiss|data-stop|data-skip/i)
-  assert.ok(html.includes('data-awake'))
+  const state = engine.snapshot()
+  // A fixed mission: one button, and it starts the mission.
+  const fixed = views.mission.renderRing({ ...state, episode: fakeEpisode({ mode: 'inside' }) })
+  assert.match(fixed, /I'M AWAKE — START MISSION/)
+  assert.match(fixed, /data-start/)
+  // A "choose at alarm" ring still has exactly one button: tapping it only
+  // acknowledges that you are awake, and the two mission cards appear after.
+  const chooser = views.mission.renderRing({ ...state, episode: fakeEpisode({ mode: null }) })
+  assert.match(chooser, /data-awake/)
+  assert.doesNotMatch(chooser, /data-mode=/, 'the chooser is not on the ringing screen')
+  assert.equal((chooser.match(/<button/g) ?? []).length, 1, 'one button while ringing')
+  assert.match(views.mission.render({ ...state, episode: fakeEpisode({ mode: null, phase: 'mission' }) }), /data-mode="outside"/)
+  for (const html of [fixed, chooser]) {
+    assert.doesNotMatch(html, /data-snooze|data-dismiss|data-stop|data-skip|data-cancel/i)
+    // The only data- attributes allowed are the ones that lead into the mission.
+    const allowed = /^(data-start|data-awake|data-mode|data-switch|data-cd-|data-gap)/
+    for (const m of html.matchAll(/data-([a-z-]+)/g)) {
+      assert.ok(allowed.test(`data-${m[1]}`), `ring screen exposes data-${m[1]}`)
+    }
+  }
 })
 
-const fakeEpisode = () => ({
+const fakeEpisode = (over = {}) => ({
   label: 'Test',
   firedAt: Date.now(),
   ringDeadlineAt: Date.now() + 5000,
@@ -102,6 +148,9 @@ const fakeEpisode = () => ({
   captures: [],
   mode: null,
   phase: 'ringing',
+  neverWoke: false,
+  escapeCount: 0,
+  ...over,
 })
 
 test('outside mission: scenery shot + pose selfie clears the episode', async () => {
@@ -113,30 +162,19 @@ test('outside mission: scenery shot + pose selfie clears the episode', async () 
   await engine.acceptMission('outside')
   assert.equal(engine.episode.phase, 'mission')
 
-  const first = await engine.submitCapture({
-    imageData: fakeFrame(),
-    dataUrl: 'data:image/jpeg;base64,x',
-    live: true,
-    simulated: false,
-    holdDiff: 0,
-    holdMs: logic.POSE_HOLD_MS,
-    requiredHoldMs: logic.POSE_HOLD_MS,
-    location: null,
-    sleepLocation: null,
-  })
+  // step 1: hold the surroundings to the camera. Proof = statistics, not a file.
+  const first = await engine.submitCapture(sceneProof())
   assert.equal(first.ok, true, JSON.stringify(first.checks?.map((c) => [c.label, c.ok])))
   assert.equal(first.done, false)
   assert.equal(engine.episode.captures.length, 1)
+  assert.ok(!('dataUrl' in engine.episode.captures[0]), 'no image may be stored on the proof')
 
-  const second = await engine.submitCapture({
-    imageData: fakeFrame(),
-    dataUrl: 'data:image/jpeg;base64,y',
-    live: true,
-    holdDiff: 0,
-    holdMs: logic.POSE_HOLD_MS,
-    requiredHoldMs: logic.POSE_HOLD_MS,
-  })
-  assert.equal(second.done, true)
+  // step 2+3: the two spoken lines, back to back after the scene
+  const second = await engine.submitCapture(lineProof())
+  assert.equal(second.done, false, 'outside mode needs the scene AND the lines')
+  await engine.rewindSpacingForDemo()
+  const third = await engine.submitCapture(lineProof())
+  assert.equal(third.done, true, JSON.stringify(third.checks?.map((c) => [c.label, c.ok])))
   assert.equal(engine.episode.phase, 'success')
   assert.equal(engine.snapshot().strikes, 0, 'a success must clear the ladder')
 })
@@ -149,59 +187,51 @@ test('indoor mission enforces the spacing between photos', async () => {
   const ep = engine.episode
   const s = engine.settings
 
-  // one accepted...
-  const r1 = await engine.submitCapture({
-    imageData: fakeFrame(),
-    dataUrl: 'data:image/jpeg;base64,1',
-    holdDiff: 0,
-    holdMs: logic.POSE_HOLD_MS,
-    requiredHoldMs: logic.POSE_HOLD_MS,
-  })
-  assert.equal(r1.ok, true)
+  // the first line is free...
+  const r1 = await engine.submitCapture(lineProof())
+  assert.equal(r1.ok, true, JSON.stringify(r1.checks?.map((c) => [c.label, c.ok])))
   assert.equal(ep.captures.length, 1)
 
-  // ...immediately trying a second must be rejected for spacing
-  const r2 = await engine.submitCapture({
-    imageData: fakeFrame(),
-    dataUrl: 'data:image/jpeg;base64,2',
-    holdDiff: 0,
-    holdMs: logic.POSE_HOLD_MS,
-    requiredHoldMs: logic.POSE_HOLD_MS,
-  })
-  assert.equal(r2.ok, false, 'shots closer together than the spacing must not count')
+  // ...the second one only after the minute has passed
+  const r2 = await engine.submitCapture(lineProof())
+  assert.equal(r2.ok, false, 'lines said back to back must not count')
   assert.equal(ep.captures.length, 1)
-  const spacingCheck = r2.checks.find((c) => c.label.includes('since previous shot'))
+  const spacingCheck = r2.checks.find((c) => c.label.includes('since your last line'))
   assert.equal(spacingCheck.ok, false)
+  assert.match(r2.checks.find((c) => !c.ok).reasons.join(' '), /Wait /)
 
   // demo skip rewinds the clock, then the remaining two go through
   await engine.rewindSpacingForDemo()
-  await engine.submitCapture({
-    imageData: fakeFrame(),
-    dataUrl: 'data:image/jpeg;base64,3',
-    holdDiff: 0,
-    holdMs: logic.POSE_HOLD_MS,
-    requiredHoldMs: logic.POSE_HOLD_MS,
-  })
+  await engine.submitCapture(lineProof())
+  assert.equal(ep.captures.length, 2)
   await engine.rewindSpacingForDemo()
-  await engine.submitCapture({
-    imageData: fakeFrame(),
-    dataUrl: 'data:image/jpeg;base64,4',
-    holdDiff: 0,
-    holdMs: logic.POSE_HOLD_MS,
-    requiredHoldMs: logic.POSE_HOLD_MS,
-  })
+  const r3 = await engine.submitCapture(lineProof())
+  assert.equal(r3.done, true, JSON.stringify(r3.checks?.map((c) => [c.label, c.ok])))
   assert.equal(engine.episode.phase, 'success')
   void s
 })
 
-test('a dark frame is rejected by the subject check even in test mode', async () => {
+test('the scene and the silence are both checked, and both fail closed', async () => {
+  const { analyzeImageData, verifyOutside, verifyMovementBetweenShots } = await import('../src/verify.js')
+  const dark = analyzeImageData(fakeFrame(64, 48, { dark: true }))
+  const bright = analyzeImageData(fakeFrame(64, 48))
+  // no test mode here: these are the raw rules
+  assert.equal(verifyOutside({ stats: dark, location: null, sleepLocation: null, testMode: false }).ok, false)
+  assert.equal(verifyOutside({ stats: bright, location: null, sleepLocation: null, testMode: false }).ok, false)
+  assert.equal(verifyMovementBetweenShots({ movement: 3, tilt: 1, required: 25, testMode: false }).ok, false)
+  // a missing stats object is a rejection, not a crash
+  assert.equal(verifyOutside({ stats: undefined, testMode: false }).ok, false)
+
+  // and the engine refuses a line that was "recognised" out of a silent room
   await idle()
-  await engine.forceFire({ minutesOut: 0, label: 'Dark room', missionMode: 'inside' })
+  await engine.forceFire({ minutesOut: 0, label: 'Mumble', missionMode: 'inside' })
   await settle()
   await engine.acceptMission('inside')
-  const { verifySubject, analyzeImageData } = await import('../src/verify.js')
-  const stats = analyzeImageData(fakeFrame(64, 48, { dark: true }))
-  assert.equal(verifySubject({ stats }).ok, false, 'a black frame should never pass as a selfie')
+  const quiet = await engine.submitCapture({ ...lineProof(), simulated: false, peak: 0.0001 })
+  assert.equal(quiet.ok, false, 'silence must never count as a spoken line')
+  assert.ok(quiet.checks.some((c) => !c.ok && c.label.includes('silent')), JSON.stringify(quiet.checks.map((c) => c.label)))
+  const mumble = await engine.submitCapture({ ...lineProof(), score: 0.2, missing: ['standing', 'out', 'loud'] })
+  assert.equal(mumble.ok, false, 'half the sentence must not count')
 })
 
 test('ignoring the alarm past the deadline locks the phone', async () => {
@@ -257,15 +287,10 @@ test('one-shot alarms disable themselves once survived, daily ones stay', async 
   await engine.forceFire({ minutesOut: 0, label: 'OneShot', missionMode: 'outside' })
   await settle()
   await engine.acceptMission('outside')
-  for (const step of [0, 1]) {
-    await engine.submitCapture({
-      imageData: fakeFrame(),
-      dataUrl: 'data:image/jpeg;base64,o',
-      holdDiff: 0,
-      holdMs: logic.POSE_HOLD_MS,
-      requiredHoldMs: logic.POSE_HOLD_MS,
-    })
-  }
+  await engine.submitCapture(sceneProof())
+  await engine.submitCapture(lineProof())
+  await engine.rewindSpacingForDemo()
+  await engine.submitCapture(lineProof())
   engine.episode.clearAt = Date.now() - 1
   await settle()
   const oneShot = engine.alarms.find((a) => a.label === 'OneShot')
@@ -303,13 +328,26 @@ test('the ring screen has no dismiss, skip, or cancel affordance', async () => {
   }
 })
 
-test('the pose library is usable as-is: unique ids, instructions, 12+ options', () => {
-  const ids = new Set(logic.POSES.map((p) => p.id))
-  assert.equal(ids.size, logic.POSES.length, 'duplicate pose ids')
-  assert.ok(logic.POSES.length >= 12, 'too few poses — a repeatable pose is a dodgeable pose')
-  for (const p of logic.POSES) {
-    assert.ok(p.label.length > 12, `${p.id} has no real instruction`)
-    assert.match(p.emoji, /\S/)
+test('the line library is usable as-is: unique ids, 12+ options, none mumble-able', () => {
+  const ids = new Set(logic.LINES.map((l) => l.id))
+  assert.equal(ids.size, logic.LINES.length, 'duplicate line ids')
+  assert.ok(logic.LINES.length >= 12, 'too few lines — a line you can guess is a line you can skip')
+  for (const l of logic.LINES) {
+    const words = logic.normalizeWords(l.text)
+    assert.ok(words.length >= logic.MIN_LINE_WORDS, `${l.id} is too short to be worth saying`)
+    assert.match(l.text, /[a-z]/)
+    assert.equal(l.text, l.text.trim(), `${l.id} has stray whitespace`)
+  }
+})
+
+test('no photograph is taken or kept anywhere in the app', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const files = ['views/mission.js', 'src/camera.js', 'src/verify.js', 'src/engine.js']
+  for (const file of files) {
+    const src = await readFile(new URL(`../${file}`, import.meta.url), 'utf8')
+    // toDataURL is how a frame would become a JPEG, canvas.captureStream how it
+    // would become a recording: neither belongs in this app any more.
+    assert.doesNotMatch(src, /toDataURL|captureStream|MediaRecorder|data:image\/jpeg/, `${file} builds an image`)
   }
 })
 

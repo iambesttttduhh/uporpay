@@ -76,6 +76,7 @@ test('the ring takeover replaces the shell UI and holds exactly one button', asy
   const doc = dom.window.document
   const ring = doc.querySelector('.overlay--ring')
   assert.ok(ring, 'ringing must take the screen over')
+  assert.equal(ring.id, 'screen', 'the takeover is the screen itself, not a card inside it')
   assert.match(ring.innerHTML, /I'M AWAKE — START MISSION/)
   assert.equal(ring.querySelectorAll('button').length, 1, 'the ring screen must offer one action')
   assert.equal(doc.querySelector('.nav').style.display, 'none', 'nav is hidden during a takeover')
@@ -95,9 +96,12 @@ test('tapping awake swaps into the mission chooser, then into the capture screen
   outside.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
   await tick(10)
   assert.equal(engine.episode.mode, 'outside')
-  assert.ok(doc.querySelector('#cam-video'), 'capture screen mounts the camera element')
-  assert.ok(doc.querySelector('#shutter'), 'shutter present')
-  assert.match(doc.querySelector('#pose-area').innerHTML, /Step 1 of 2/)
+  assert.ok(doc.querySelector('#cam'), 'the mission screen mounts a live camera element')
+  assert.ok(doc.querySelector('#scene-btn'), 'the scene hold button is present')
+  // The proof is a hold, not a shutter: there is no capture button anywhere.
+  assert.equal(doc.querySelector('#shutter'), null, 'no shutter may exist — nothing is photographed')
+  assert.doesNotMatch(doc.querySelector('.mission').innerHTML, /type=["']file["']/)
+  assert.match(doc.querySelector('.m-body').innerHTML, /Point it at the room or the street/)
 })
 
 test('a blown deadline repaints into the lock screen without a reload', async () => {

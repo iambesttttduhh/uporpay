@@ -110,7 +110,8 @@ test('without a bridge the native object is present but completely inert', async
   assert.equal(await native.native.consumeLaunch(), null)
   assert.equal(await native.native.startRing('x'), null)
   assert.deepEqual(await native.native.lockState(), { locked: false, remainingMs: 0, reason: '', deviceOwner: false })
-  assert.deepEqual(await native.native.capturePhoto(), { ok: false, error: 'no-native-camera' })
+  // There is no photo API at all any more — not even one that fails.
+  assert.equal(native.native.capturePhoto, undefined, 'no image API may exist in the bridge')
   assert.equal(await native.native.position(), null)
   assert.deepEqual(await native.native.rescheduleAll([{ id: 'a', enabled: true, time: '07:00' }]), {
     rearmed: 0,
@@ -233,31 +234,33 @@ test('completing a mission silences the service and clears the receipt', async (
   await engine.acceptMission('outside')
   assert.ok(!calls.some((c) => c.name === 'stopRing') || true)
 
-  for (const tag of ['a', 'b']) {
-    await engine.submitCapture({
-      imageData: fakeFrame(),
-      dataUrl: `data:image/jpeg;base64,${tag}`,
-      live: true,
-      simulated: false,
-      holdDiff: 0,
-      holdMs: logic.POSE_HOLD_MS,
-      requiredHoldMs: logic.POSE_HOLD_MS,
-      location: null,
-      sleepLocation: null,
-    })
-  }
-  assert.equal(engine.episode.phase, 'success')
+  // scene, then the two lines (the last one after the gap, rewound for demo)
+  await engine.submitCapture({
+    sceneStats: { meanLum: 128, skyRatio: 0.28, greenRatio: 0.1, edgeEnergy: 20 },
+    sceneMotion: { integral: 80, tilt: 28 },
+    peak: 0.4,
+    seconds: 12,
+  })
+  const line = { transcript: 'I am standing outside and I said the line', score: 1, missing: [], peak: 0.4, seconds: 5 }
+  await engine.submitCapture(line)
+  await engine.rewindSpacingForDemo()
+  await engine.submitCapture(line)
+  assert.equal(engine.episode.phase, 'success', JSON.stringify(engine.episode.captures.length))
   assert.ok(calls.some((c) => c.name === 'stopRing'), 'waking up must stop the OS-level buzz')
   assert.ok(calls.some((c) => c.name === 'acknowledgeAlarm'), 'and the due record must be consumed')
   assert.equal(engine.snapshot().strikes, 0)
 })
 
-test('a native camera failure falls back instead of dead-ending the mission', async () => {
-  globalThis.Capacitor.Plugins.Camera = {
-    checkPermissions: () => Promise.resolve({ camera: 'denied' }),
-    requestPermissions: () => Promise.resolve({ camera: 'denied' }),
-    getPhoto: () => Promise.reject(new Error('should not be reached')),
-  }
-  const shot = await native.native.capturePhoto({ facing: 'user' })
-  assert.deepEqual(shot, { ok: false, error: 'camera-denied' })
+test('a denied microphone or a missing recogniser is data, never a crash', async () => {
+  // The mission screens must still render (and still be escapable only by the
+  // rules) when the OS says no to the mic — so these calls resolve, they throw
+  // nothing.
+  delete globalThis.Capacitor.Plugins.WakeOrLock
+  assert.deepEqual(await native.native.recognizeSpeech({ lang: 'en-US' }), { error: 'no-native' })
+  assert.deepEqual(await native.native.requestMic(), { granted: false })
+  assert.deepEqual(await native.native.requestOverlay(), { granted: false })
+  assert.equal(await native.native.startLeash(), null)
+  assert.equal(await native.native.stopLeash(), null)
+  // …and the bridge really has no way to take a picture
+  assert.equal(native.native.capturePhoto, undefined)
 })

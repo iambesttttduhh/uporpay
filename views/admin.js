@@ -83,7 +83,7 @@ function console_(state) {
     <hr class="sep" />
     ${row('adminGodMode', 'No lockouts', 'The important one. A blown mission closes as <b>bypassed</b> — no strike, no lock screen, ring stops. Enforced in engine._fail(), not in the view.')}
     ${row('adminAutoPass', 'Auto-pass captures', 'Any frame is accepted. The checks still run and their reasons are still recorded, marked auto-passed, so you can see what you skipped.')}
-    ${row('adminInstantSpacing', 'Ignore photo spacing', 'Fire all 3 indoor shots back-to-back instead of 10 minutes apart.')}
+    ${row('adminInstantSpacing', 'Ignore line gaps', 'Say all three lines back-to-back instead of a minute apart.')}
     ${row('adminQuietRing', 'Silent ring', 'Full takeover UI, no siren, no vibration.')}
     <div class="btn-grid one" style="margin-top:12px">
       <button class="btn" data-lease="60">+1 h lease</button>
@@ -98,7 +98,7 @@ function console_(state) {
       <button class="btn" data-preview-lock="0.5">🔒 Preview lock 30 s</button>
       <button class="btn" data-preview-lock="2">🔒 Preview lock 2 min</button>
       <button class="btn" data-strike="+1">⬆ Strike +1 (real)</button>
-      <button class="btn" data-strike="-1">⬇ Strike −1 (real)</button>
+      <button class="btn" data-strike="-1">⬇ Reset the ladder (real)</button>
     </div>
     <hr class="sep" />
     <div class="field">
@@ -137,8 +137,8 @@ function console_(state) {
     <div class="checks" style="margin-top:8px">
       ${[0, 1, 2]
         .map((i) => {
-          const p = logic.poseForStep(ep ? logic.episodeSeed(ep) : 'preview', i)
-          return `<div class="check"><div>${p.emoji}</div><div class="grow"><b>${esc(p.label)}</b><div class="tiny muted">step ${i + 1}${ep ? '' : ' (fresh seed)'}</div></div></div>`
+          const p = logic.lineForStep(ep ? logic.episodeSeed(ep) : 'preview', i)
+          return `<div class="check"><div>🗣</div><div class="grow"><b>${esc(p.text)}</b><div class="tiny muted">step ${i + 1}${ep ? '' : ' (fresh seed)'}</div></div></div>`
         })
         .join('')}
     </div>
@@ -260,13 +260,12 @@ export async function mount(root, state) {
     }
 
     if (e.target.closest('[data-reset-curve]')) {
-      await engine.setSettings({ lockHoursCurve: [1, 2, 4, 6, 9, 12, 18, 24] })
+      await engine.setSettings({ lockHoursCurve: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] })
       return toast('Ladder restored', 'good')
     }
 
     if (e.target.closest('[data-zero-strikes]')) {
-      const n = logic.strikesFromEvents(engine.events)
-      if (n > 0) await engine.adjustStrikes(-n)
+      await engine.resetStrikes('admin console')
       return toast('Ladder reset to zero — journaled as admin, not as a win.', 'good')
     }
 

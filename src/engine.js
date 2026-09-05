@@ -18,7 +18,7 @@
 import * as logic from './logic.js'
 import * as db from './db.js'
 import { alarmSound, acquireWakeLock, releaseWakeLock, enterFullscreen, exitFullscreen } from './audio.js'
-import { verifyOutside, verifyMovementBetweenShots, analyzeImageData, verifyShot } from './verify.js'
+import { verifyOutside, verifyMovementBetweenShots, analyzeImageData } from './verify.js'
 import { motionProbe, currentLocation } from './camera.js'
 import { native, detect as detectNative } from './native.js'
 
@@ -129,11 +129,43 @@ class Engine {
     if (native.available) {
       try {
         await this._reconcileNative()
+        await this._syncNativeLock()
       } catch (err) {
         console.warn('[native] reconcile failed', err)
       }
     }
     this.tick()
+  }
+
+  /**
+   * The OS counts the ways you tried to get out — Home, Recents, unpinning —
+   * because it is the only thing awake when you do it. Each attempt already
+   * extended the deadline natively; here we adopt that longer deadline and
+   * journal it, so the lock screen and the history agree.
+   */
+  async _syncNativeLock() {
+    if (!native.available) return
+    const st = await native.lockState()
+    const ep = this.episode
+    if (!st?.locked || !ep || ep.phase !== PHASE.LOCKED) return
+    const escapes = Number(st.escapeCount ?? 0)
+    const seen = Number(ep.escapeCount ?? 0)
+    if (escapes <= seen) return
+    ep.escapeCount = escapes
+    ep.lockUntil = Math.max(ep.lockUntil ?? 0, Number(st.until ?? 0) || Date.now() + logic.escapePenaltyMs(this.settings))
+    for (let i = 0; i < escapes - seen; i++) {
+      await this._logEvent({
+        type: 'escape_attempt',
+        episodeId: ACTIVE_EPISODE,
+        alarmId: ep.alarmId,
+        label: ep.label,
+        strike: ep.strike,
+        penaltyMinutes: Math.round((st.penaltyMs ?? logic.escapePenaltyMs(this.settings)) / 60000),
+        lockUntil: ep.lockUntil,
+        reason: 'Tried to leave the lockout while it was running',
+      })
+    }
+    await this._saveEpisode()
   }
 
   _emit() {
@@ -297,6 +329,7 @@ class Engine {
       reason: null,
       failedAttempts: 0,
       reason: 'The alarm fired while the app was closed, and the window ran out',
+      neverWoke: true,
     }
     void native.acknowledge(record.id)
     await this._saveEpisode()
@@ -320,6 +353,8 @@ class Engine {
       clearAt: null,
       lockMinutes: Math.max(1, Math.round((st.remainingMs ?? 0) / 60000)),
       lockUntil: Date.now() + (st.remainingMs ?? 60000),
+      escapeCount: Number(st.escapeCount ?? 0),
+      neverWoke: true,
       reason: st.reason || 'Lockout carried across an app restart',
       failedAttempts: 0,
     }
@@ -541,50 +576,88 @@ class Engine {
   }
 
   /**
-   * Submit a capture attempt. Runs every check, stores the image, and if it is
-   * the final required step, ends the episode as a success.
+   * Submit a proof — a spoken line, or the result of holding the camera on your
+   * surroundings. Nothing here stores media: the pixels and the audio are
+   * analysed in memory and thrown away, and only the numbers survive in the
+   * journal. That is what makes the mission feel instant instead of laggy.
    */
-  async submitCapture({ imageData, dataUrl, live, simulated, holdDiff, holdMs, requiredHoldMs, location, sleepLocation }) {
+  async submitProof({ transcript, score, missing, peak, seconds, simulated, sceneStats, sceneMotion, location, sleepLocation }) {
     const ep = this.episode
-    if (!ep || ep.phase !== PHASE.MISSION) {
-      return { ok: false, error: 'No live mission right now.' }
-    }
+    if (!ep || ep.phase !== PHASE.MISSION) return { ok: false, error: 'No live mission right now.' }
     const s = this.settings
     const steps = logic.missionSteps(ep.mode, s)
     const stepIndex = ep.captures.length
     const step = steps[stepIndex]
     if (!step) return { ok: false, error: 'Mission already complete.' }
 
-    const pose = logic.poseForStep(logic.episodeSeed(ep), stepIndex)
-    const stats = analyzeImageData(imageData)
+    const line = step.kind === 'voice' ? logic.lineForStep(logic.episodeSeed(ep), stepIndex) : null
+    const admin = logic.adminActive(this.settings)
     const checks = []
 
-    // 1) spacing — the core of the 3-shots/10-minutes rule
+    // 1) spacing — "3 lines, a minute apart" is enforced by the clock, not by luck
     const earliest = logic.earliestNextCaptureAt(ep, s)
     const at = Date.now()
-    const admin = logic.adminActive(this.settings)
     const early = at < earliest && !(admin && this.settings.adminInstantSpacing)
     checks.push({
       ok: !early,
-      label:
-        ep.mode === 'inside'
-          ? `${s.insideSpacingMinutes} min since previous shot`
-          : 'First shot of the sequence',
+      label: logic.stepNeedsGap(step, stepIndex)
+        ? `${s.insideLineGapMinutes ?? 1} min since your last line`
+        : 'First proof of the sequence',
       reasons: early
-        ? [`Wait ${logic.formatCountdown(earliest - at)} before the next photo — the ${s.insideSpacingMinutes} min spacing is enforced.`]
-        : [`Gap since last accepted shot: ${logic.formatDuration(Math.max(0, at - (ep.captures.at(-1)?.at ?? ep.firedAt)))}`],
+        ? [`Wait ${logic.formatCountdown(earliest - at)} — the gap between lines is the exercise.`]
+        : [`Gap since last accepted proof: ${logic.formatDuration(Math.max(0, at - (ep.captures.at(-1)?.at ?? ep.firedAt)))}`],
     })
 
-    // 2) movement between shots
-    const motion = motionProbe.consume()
-    checks.push(verifyMovementBetweenShots({ ...motion, required: 40, testMode: Boolean(s.testMode) }))
-
-    // 3) pose + subject + hold
-    checks.push(...(await verifyShot({ verifier: s.poseVerifier ?? 'heuristic', pose, imageData, stats, holdDiff, holdMs, requiredHoldMs, testMode: Boolean(s.testMode) })))
-
-    // 4) outdoors proof, only for the scenery shot
-    if (step.kind === 'outside-scenery') {
-      checks.push(verifyOutside({ stats, location, sleepLocation, testMode: Boolean(s.testMode) }))
+    if (step.kind === 'voice') {
+      // 2) did the words actually happen
+      const need = s.speechMatch ?? 0.6
+      const got = Number(score ?? 0)
+      checks.push({
+        ok: got >= need,
+        label: `Said the line (${Math.round(got * 100)}% of ${Math.round(need * 100)}% needed)`,
+        reasons: got >= need
+          ? [`Heard: "${transcript ?? ''}"`]
+          : [`Missing: ${(missing ?? []).slice(0, 6).join(', ') || 'the recogniser heard nothing'}`, 'Say the whole sentence out loud — not mumbled into a pillow.'],
+      })
+      // 3) was there audio at all: recognition happily hallucinates in silence
+      const minLevel = s.micLevelMin ?? 0.03
+      // Measured, not claimed: a proof cannot declare itself "simulated" to get
+      // out of the audio check. The one exception is the explicit test-mode
+      // switch, which is labelled as simulating proofs and is off by default —
+      // without it there is no way to demo the app on a device that has neither
+      // a recogniser nor a microphone (a blocked iframe, an old browser).
+      const excused = Boolean(simulated) && Boolean(s.testMode)
+      const quiet = !(Number.isFinite(peak) && peak >= minLevel) && !excused
+      checks.push({
+        ok: !quiet,
+        label: quiet ? 'Room was silent' : 'Voice detected on the mic',
+        reasons: quiet
+          ? [`Peak level ${Number.isFinite(peak) ? (peak * 100).toFixed(1) + '%' : 'not measured'} — say it loudly into the mic (needs > ${(minLevel * 100).toFixed(0)}%).`]
+          : [`Peak ${(Number(peak || 0) * 100).toFixed(0)}% over ${(seconds ?? 0).toFixed(1)} s`],
+      })
+    } else {
+      // 4) surroundings: it has to look like a real scene and it has to move
+      const stats = sceneStats ?? {}
+      const moved = Number(sceneMotion?.integral ?? sceneMotion ?? 0)
+      const required = s.sceneMotionMin ?? 25
+      checks.push({
+        ok: Boolean(s.testMode) || moved >= required,
+        label: 'You moved the phone around',
+        reasons: s.testMode
+          ? ['test mode: movement not enforced']
+          : moved >= required
+            ? [`Scene movement ${Math.round(moved)} (needed ${required})`]
+            : [`Scene barely moved (${Math.round(moved)} of ${required}). Turn around with the phone — a still frame of a wall is not a scene.`],
+      })
+      if (ep.mode === 'outside') {
+        checks.push(verifyOutside({ stats, location, sleepLocation, testMode: Boolean(s.testMode) }))
+      } else {
+        checks.push({
+          ok: true,
+          label: 'Camera saw something',
+          reasons: [`Frame luminance ${(stats.meanLum ?? 0).toFixed(0)}, edges ${(stats.edgeEnergy ?? 0).toFixed(1)}`],
+        })
+      }
     }
 
     const verdict = logic.evaluateStep(checks)
@@ -595,35 +668,57 @@ class Engine {
         if (!c.ok) c.autoPassed = true
       })
     }
-    const shotId = logic.uid('shot')
-    const shot = { id: shotId, episodeId: ACTIVE_EPISODE, at, stepIndex, kind: step.kind, poseId: pose.id, dataUrl, live, simulated }
-    this.shots = [...this.shots, shot]
-    await db.put('shots', shot)
 
     if (!verdict.ok) {
-      // Record the attempt so cheating is visible, but don't advance the step.
-      // (Auto-pass lands here never — it flips verdict.ok above.)
       ep.failedAttempts = (ep.failedAttempts ?? 0) + 1
       await this._saveEpisode()
+      await this._logEvent({
+        type: 'proof_rejected',
+        episodeId: ACTIVE_EPISODE,
+        stepIndex,
+        kind: step.kind,
+        lineId: line?.id ?? null,
+        score: Number(score ?? 0),
+        attempts: ep.failedAttempts,
+      })
       this._emit()
-      return { ok: false, checks, pose, step, shotId, at: earliest }
+      return { ok: false, checks, line, step, at: earliest }
     }
 
-    ep.captures = [...ep.captures, { at, stepIndex, kind: step.kind, poseId: pose.id, shotId, checks }]
+    ep.captures = [
+      ...ep.captures,
+      {
+        at,
+        stepIndex,
+        kind: step.kind,
+        lineId: line?.id ?? null,
+        lineText: line?.text ?? null,
+        score: Number(score ?? 1),
+        peak: Number(peak ?? 0),
+        seconds: Number(seconds ?? 0),
+        simulated: Boolean(simulated),
+        checks,
+      },
+    ]
     await this._saveEpisode()
 
     if (ep.captures.length >= steps.length) {
       await this._succeed()
-      return { ok: true, done: true, checks, pose, step }
+      return { ok: true, done: true, checks, line, step }
     }
     this._emit()
-    const waitMs = logic.spacingMs(s)
-    return { ok: true, done: false, checks, pose, step, waitMs }
+    return { ok: true, done: false, checks, line, step, waitMs: logic.spacingMs(s), nextAt: logic.earliestNextCaptureAt(ep, s) }
+  }
+
+  /** Old name, kept so the admin console and stored episodes still work. */
+  submitCapture(args) {
+    return this.submitProof(args)
   }
 
   async _succeed() {
     const ep = this.episode
     if (!ep) return
+    await this._clearDebt(ep.alarmId)
     ep.phase = PHASE.SUCCESS
     ep.outcome = 'woke'
     ep.clearAt = Date.now() + (this.settings.demoTiming ? 6000 : 12_000)
@@ -666,7 +761,11 @@ class Engine {
     if (!ep || ep.phase === PHASE.LOCKED) return
     if (!logic.shouldLockOut(this.settings)) return this._bypass('mission deadline reached')
     const strikes = logic.strikesFromEvents(this.events) + 1
-    const minutes = logic.lockMinutesFor(strikes, this.settings)
+    // Two punishments: you tried and blew the deadline (the ladder), versus never
+    // even tapping "I'M AWAKE" (asleep through it → the 20-hour one).
+    const neverWoke = ep.neverWoke ?? !ep.acceptedAt
+    ep.neverWoke = neverWoke
+    const minutes = logic.lockMinutesFor(strikes, this.settings, { neverWoke })
     ep.phase = PHASE.LOCKED
     ep.outcome = 'locked'
     ep.strike = strikes
@@ -683,7 +782,11 @@ class Engine {
     if (native.available) {
       void native.stopRing()
       void native.acknowledge(ep.alarmId)
-      void native.engageLock(ep.lockUntil, ep.reason) // the OS pins us, not just the overlay
+      // The OS pins us, not just the overlay — and it is handed the escape
+      // penalty too, so the extension survives even if this WebView never runs
+      // again (force-stop, crash, reboot).
+      void native.engageLock(ep.lockUntil, ep.reason, logic.escapePenaltyMs(this.settings))
+      void native.startLeash(logic.escapePenaltyMs(this.settings))
     }
     await this._logEvent({
       type: 'locked',
@@ -693,7 +796,9 @@ class Engine {
       strike: strikes,
       lockMinutes: minutes,
       mode: ep.mode,
-      shots: ep.captures.length,
+      proofs: ep.captures.length,
+      neverWoke: Boolean(ep.neverWoke),
+      escapes: ep.escapeCount ?? 0,
       reason: ep.reason,
     })
     await this._saveEpisode()
@@ -745,12 +850,52 @@ class Engine {
       served: true,
       restored,
     })
-    if (native.available) void native.releaseLock()
-    if (ep.oneShot && ep.alarmId) this._disableAlarm(ep.alarmId)
+    if (native.available) {
+      void native.releaseLock()
+      void native.stopLeash()
+    }
+    if (ep.oneShot && ep.alarmId && !this.settings.reArmAfterLockout) this._disableAlarm(ep.alarmId)
+    await this._rearmDebt(ep)
     this.lastOutcome = { kind: 'released', at: Date.now(), strike: ep.strike, lockMinutes: ep.lockMinutes }
     this.episode = null
     await this._saveEpisode()
     this._emit()
+  }
+
+  /**
+   * "The same alarm will be set again": after a lockout expires, the alarm you
+   * failed is re-armed for the next wake-up and flagged as a debt. Serving the
+   * time is not the same as waking up, so the obligation carries over.
+   */
+  async _rearmDebt(ep) {
+    if (!this.settings.reArmAfterLockout || !ep?.alarmId) return
+    const a = this.alarms.find((x) => x.id === ep.alarmId)
+    if (!a) return
+    a.oneShot = false // a one-shot you failed stays armed — that is the point
+    a.enabled = true
+    a.debt = true
+    a.debtSince = a.debtSince ?? Date.now()
+    a.debtStrikes = (a.debtStrikes ?? 0) + 1
+    await db.put('alarms', { ...a })
+    await this._syncNativeSchedule()
+    await this._logEvent({
+      type: 'debt',
+      alarmId: a.id,
+      label: a.label,
+      strike: ep.strike,
+      lockMinutes: ep.lockMinutes,
+      time: a.time,
+      reason: 'Alarm re-armed for the next wake-up — you have not woken up yet',
+    })
+  }
+
+  async _clearDebt(alarmId) {
+    const a = this.alarms.find((x) => x.id === alarmId)
+    if (!a || !a.debt) return
+    a.debt = false
+    a.debtSince = null
+    a.debtStrikes = 0
+    await db.put('alarms', { ...a })
   }
 
   async _disableAlarm(alarmId) {
@@ -905,12 +1050,19 @@ class Engine {
       for (let i = 0; i < delta; i++) {
         await this._logEvent({ type: 'locked', strike: null, lockMinutes: 0, reason: 'strike granted by admin', admin: true })
       }
-    } else {
-      for (let i = 0; i < -delta; i++) {
-        await this._logEvent({ type: 'woke', mode: 'admin', completionMs: 0, shots: 0, admin: true })
-      }
+    } else if (delta < 0) {
+      // Strikes are derived from the log, so they cannot be "subtracted" — the
+      // honest version is a reset, journaled as an admin act rather than faked
+      // as a successful wake-up (which would also inflate the streak).
+      await this.resetStrikes('admin console')
     }
     this._emit()
+  }
+
+  async resetStrikes(reason = 'admin console') {
+    await this._logEvent({ type: 'strike_reset', to: 0, reason, admin: true })
+    this._emit()
+    return { ok: true }
   }
 
   /** Show the lock screen on demand — it never counts against you. */

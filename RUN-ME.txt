@@ -1,7 +1,30 @@
 Wake or Lock — an alarm clock you cannot dismiss
 ================================================
 
-RUN IT (no npm install — zero runtime dependencies)
+THE RULES, IN ONE BREATH
+
+    Buzzes 5 minutes straight, then nag-bursts until the 20-minute deadline.
+    To stop it you must DO A TASK, not tap a button:
+        OUTSIDE   hold the camera on your surroundings for 12 s (it must be
+                  bright, have sky or green in it, and actually move), then say
+                  2 English sentences the app picked for you.
+        INSIDE    say 3 sentences, one minute apart, each a different one.
+    No photographs. No audio kept. The mic measures, the camera measures, and
+    only a score + a level + a duration go into your journal.
+
+    Blow the deadline without starting a task   -> 20 HOURS locked (that is the
+                                                    "you never even woke up" one)
+    Fail the task in time                      -> strike ladder: 1 h, 2 h, 3 h …
+                                                   strike 10 = 10 h
+    Unpin / go home / reboot during a lockout   -> +15 min each attempt (capped),
+                                                   and the leash drags the lock
+                                                   screen back. Rebooting re-applies
+                                                   the remaining time.
+    Serve the time                             -> the same alarm is re-armed. You
+                                                   still owe that wake-up.
+
+
+RUN THE WEB BUILD (no npm install — zero runtime dependencies)
 
     node -v          # need v18+; if missing: nodejs.org
     cd uporpay       # into this folder
@@ -11,51 +34,72 @@ Then open  http://localhost:5173
 
     port busy        node serve.js 8080
     stop server      Ctrl+C
-    run the tests    npm install && npm test      # 50 tests, needs jsdom
+    run the tests    npm install && npm test      # 62 tests, needs jsdom
 
 
 FIRST THINGS TO CLICK
 
     1. Admin tab (bottom nav)  ->  PIN: 0000
-       God mode is on: no lockouts while you test.
+       God mode is on: no lockouts while you test. Every override is journaled.
     2. Home -> "Ring right now"          the takeover screen. one button. no snooze.
-    3. "I'M AWAKE" -> Stay inside        hold the shutter 1.5s per photo.
-       (In Admin, switch on "Auto-pass" and "Ignore photo spacing" to clear the
-        mission from a laptop webcam in a few seconds.)
-    4. Admin -> "Blow the deadline now"  you get the bypass screen. flip
-       "No lockouts" OFF and repeat to see a real lockout.
+    3. "I'M AWAKE" -> Stay inside        hold the mic button and speak the line.
+       (In Admin, switch on "Auto-pass" and "Ignore line gaps" to clear a whole
+        mission from a laptop in a few seconds — or Settings -> Test mode, which
+        also simulates proofs where the browser has no speech recogniser.)
+    4. Admin -> "Blow the deadline now"  you get the lock screen. flip
+       "No lockouts" OFF and repeat to see a real one.
     5. Admin -> "Preview lock 30 s"      sit in the lockout with no risk.
     6. Home -> "90-second trial"         the whole loop, hands-free.
 
+    Camera and mic need a secure context. On http://localhost they work with no
+    certificate setup. To test on a phone over wifi:
+        node serve.js --https        then the printed https://<lan-ip>:5173
+    or on Android:  adb reverse tcp:5173 tcp:5173  -> http://localhost:5173
 
-TWO THINGS TO KNOW
 
-    * Demo timing is ON by default: every duration is divided by 60 (30-min
-      window = 30 s, 1-hour lockout = 1 min). Settings -> Demo timing OFF for
-      the real thing.
-    * A web page cannot lock the operating system. This covers the browser
-      window and won't let you dismiss the alarm inside it - faithful prototype.
-      docs/NATIVE.md maps the version that is truly inescapable (AlarmManager +
-      foreground service + Android Device Owner lock task).
+THE APK (this is the one that can actually hold your phone)
 
-Camera works on http://localhost with no certificate setup. To test on a phone
-over wifi you need https (camera/GPS/wake-lock are secure-context only):
-    node serve.js --https        then open the printed https://<lan-ip>:5173
-or on Android:  adb reverse tcp:5173 tcp:5173  -> http://localhost:5173 on the phone
+    builds/wake-or-lock-debug.apk        in this repo, ~7 MB, debug-signed
+    sha256                               builds/SHA256SUMS.txt
 
-Everything stays on the device: no server, no accounts, no analytics.
+    1. Copy it to the phone (cable, Drive, whatever) and open it.
+       Allow "install unknown apps" for whatever you opened it with.
+    2. Open the app once. It asks for: notifications, alarm & reminders,
+       camera, microphone, and (optionally) "display over other apps".
+    3. Set an alarm 2 minutes out. Lock the phone. Watch it take over.
+    4. Demo timing is ON by default so the whole loop takes a minute —
+       Settings -> Demo timing OFF once you believe it.
+
+    What you get out of the box: full-screen takeover over the lock screen, a
+    foreground service that keeps ringing when the app is swiped away, a 12-second
+    leash loop that bills escape attempts and re-opens the lock screen, and a
+    reboot that comes back into the same lockout.
+
+    What you only get with one extra adb command: a device-owner lock-task, where
+    Android itself refuses to leave the app — no Unpin button at all, and shutdown,
+    safe boot, factory reset and uninstall blocked while it runs:
+
+        adb shell dpm set-device-owner com.uporpay.wakeorlock/.AppDeviceReceiver
+
+    (run once, and the app must be uninstalled first if it was already installed;
+    see docs/DEVICE_OWNER.md — that is the difference between "very hard to get out
+    of" and "the OS will not let you out".)
+
+    Rebuild it: push this folder to GitHub -> Actions -> "Android APK" -> Run
+    workflow, and download wake-or-lock-debug.apk from the run's artifacts (the
+    workflow also commits it into builds/). Locally it needs JDK 17 + Android SDK:
+        npm ci && npm run android:apk
+    then android/app/build/outputs/apk/debug/app-debug.apk
+
+    Docs: docs/APK.md (permissions, what is native)
+          docs/DEVICE_OWNER.md (the exit-button-less version)
+          docs/NATIVE.md (how the pieces fit)
+
+
+EVERYTHING STAYS ON THE DEVICE
+
+No server, no account, no analytics — and nothing to leak anyway: no image file
+is ever written, no audio is recorded, and backups are excluded so an old
+snapshot cannot be restored to unlock a current lockout.
+
 Full write-up: README.md
-
-WANT THE ANDROID APK?
-  Prebuilt (debug-signed, 6.8 MB) — needs you signed in to GitHub because the
-  repo is private:
-      https://github.com/iambesttttduhh/uporpay/releases/download/wake-or-lock-debug/wake-or-lock-debug.apk
-
-  Rebuild it yourself on GitHub Actions: push this folder to a repo, then
-  Actions -> "Android APK" -> Run workflow. Download wake-or-lock-debug.apk from
-  the run's Artifacts and install it (allow "install unknown apps").
-  Building locally needs a JDK 17 + Android SDK:
-      npm ci && npm run android:apk
-  then flash  android/app/build/outputs/apk/debug/app-debug.apk
-  Docs: docs/APK.md (what is native, permissions checklist)
-        docs/DEVICE_OWNER.md (the version with no exit button)

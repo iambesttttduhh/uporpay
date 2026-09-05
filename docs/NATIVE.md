@@ -7,7 +7,8 @@
 > look like in the docs; the shipped code is Java for the same calls.
 
 The web build proves the *rules* (mission → verification → escalating lockout) and the
-*interaction design* (no dismiss, hold-to-capture, spaced photos). Two things it cannot do,
+*interaction design* (no dismiss, one button that only acknowledges being awake, spaced
+spoken lines, a live camera hold that is never saved). Two things it cannot do,
 by construction of the platform:
 
 1. wake the phone at an exact time from a dead background state, and
@@ -78,10 +79,13 @@ locked still leaves the record. Additionally:
   wipe and reinstall. If you add that, it must be opt-in — an app that phones home about your
   sleeping is a different product.
 
-## 3. Real pose and "outside" verification
+## 3. Optional upgrade: real pose verification
 
-The web build uses frame statistics (steady hold, skin/edge signature, sky ratio). The native
-build can do the actual thing, ~2 ms/frame on-device:
+The shipped rules do **not** involve a photograph, and this section is deliberately left as an
+option rather than a requirement: the outside proof is a few seconds of live camera measured for
+brightness, sky/green ratio and frame-to-frame motion (`src/verify.js`), and the rest of the
+mission is spoken. If you want a *pose* step on top of that, the native build is where it belongs
+— ~2 ms/frame on-device:
 
 ```kotlin
 val opts = PoseLandmarker.GraphOptions.builder()
@@ -94,18 +98,21 @@ val opts = PoseLandmarker.GraphOptions.builder()
 - **Pose:** compare landmark topology against the requested pose — for `superhero` you want
   both wrists below the elbows and elbows wider than the shoulders; for `double-flex`,
   wrist-above-elbow-above-shoulder on both sides. Score 12 keypoint relations, require ≥9.
-- **Not a photo of a photo:** moiré/flicker detection plus a challenge-response — the app
-  asks for a random micro-action ("now turn your head left") mid-hold and requires the keypoint
-  sequence to show it. Cheap, and it kills the tablet-with-a-jpeg attack.
+- **Not a scene of a scene:** moiré/flicker detection plus a challenge-response — the app can
+  ask for a random micro-action mid-hold ("now turn all the way to the left") and require the
+  motion integral to show it. Cheap, and it kills the tablet-playing-a-video-of-a-window attack.
 - **Outside:** `FusedLocationProviderClient` + geofence around the registered bed spot;
   `inside/outside` classification from `TYPE_LIGHT` ambient sensor + `STATUS_FIX` accuracy, and
   (best) `ActivityRecognitionClient` for `IN_VEHICLE / ON_FOOT / STILL` — you must be moving.
 - Camera must be `CameraX` with `ImageAnalysis` only — never the gallery — and drop
-  `READ_MEDIA_IMAGES` from the manifest entirely so "pick a photo" is not even a capability.
+  `READ_MEDIA_IMAGES` from the manifest entirely so "pick a photo" is not even a capability —
+  which is already true here: the manifest asks for `CAMERA` and `RECORD_AUDIO` and nothing that
+  could read or write media.
 
 ## 4. What to keep from this repo
 
 `src/logic.js` is DOM-free and ports to Kotlin almost line for line: the fire-time search, the
-"indoor mission became impossible because you started 22 minutes in" arithmetic, the pose seed
-(episode + step index, so a restart cannot reroll your pose), and the lock ladder. That module
+"indoor mission became impossible because you started too late" arithmetic, the line seed
+(episode + step index, so a restart cannot reroll you an easier sentence), and the lock ladder.
+That module
 is the product; the rest is chrome.

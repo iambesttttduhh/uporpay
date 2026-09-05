@@ -117,46 +117,38 @@ test('turn god mode off again and the very same run locks you out', async () => 
   await idle()
 })
 
-test('auto-pass accepts a black frame, but records that it did', async () => {
+test('auto-pass accepts a mumbled line, but records that it did', async () => {
   await engine.setSettings({ adminAutoPass: true })
   await idle()
   await engine.forceFire({ minutesOut: 0, label: 'Auto pass', missionMode: 'inside' })
   await settle()
   await engine.acceptMission('inside')
-  const r = await engine.submitCapture({
-    imageData: darkFrame(),
-    dataUrl: 'data:image/jpeg;base64,black',
-    holdDiff: 999, // flailing phone
-    holdMs: 1,
-    requiredHoldMs: logic.POSE_HOLD_MS,
-  })
+  // score 0 = the recogniser heard nothing worth counting
+  const r = await engine.submitCapture({ transcript: '', score: 0, missing: ['all', 'of', 'it'], peak: 0.42, seconds: 4 })
   assert.equal(r.ok, true, 'auto-pass accepts anything')
   const failed = r.checks.filter((c) => !c.ok && !c.autoPassed)
   assert.ok(failed.length === 0, 'every failing check must be marked auto-passed')
   const auto = r.checks.filter((c) => c.autoPassed)
-  assert.equal(auto.length, 1, 'exactly the one failing check should be marked as skipped')
-  assert.match(auto[0].label, /Subject in frame/)
+  assert.equal(auto.length, 1, `exactly the one failing check should be marked as skipped: ${JSON.stringify(r.checks.map((c) => [c.label, c.ok]))}`)
+  assert.match(auto[0].label, /Said the line/)
   assert.ok(auto[0].reasons.length, 'the skipped reason must still say what it rejected')
+  await engine.setSettings({ adminAutoPass: false })
 })
 
-test('instant spacing lets all indoor shots fire back-to-back', async () => {
+test('instant spacing lets all indoor lines fire back-to-back', async () => {
   await idle()
   await engine.forceFire({ minutesOut: 0, label: 'Spacing off', missionMode: 'inside' })
   await settle()
   await engine.acceptMission('inside')
   const before = engine.settings.adminInstantSpacing
   await engine.setSettings({ adminInstantSpacing: true })
-  for (let i = 0; i < engine.settings.insidePhotos; i++) {
-    const r = await engine.submitCapture({
-      imageData: frame(),
-      dataUrl: `data:image/jpeg;base64,s${i}`,
-      holdDiff: 0,
-      holdMs: logic.POSE_HOLD_MS,
-      requiredHoldMs: logic.POSE_HOLD_MS,
-    })
-    assert.equal(r.ok, true, `shot ${i + 1} rejected: ${JSON.stringify(r.checks?.filter((c) => !c.ok && !c.autoPassed))}`)
+  const proof = { transcript: 'I am standing up and I said the whole line', score: 1, missing: [], peak: 0.42, seconds: 5 }
+  // without the switch the second line would be refused for the missing gap
+  for (let i = 0; i < engine.settings.insideLines; i++) {
+    const r = await engine.submitCapture(proof)
+    assert.equal(r.ok, true, `line ${i + 1} rejected: ${JSON.stringify(r.checks?.filter((c) => !c.ok && !c.autoPassed).map((c) => c.label))}`)
   }
-  assert.equal(engine.episode.phase, 'success', 'three shots in one second should clear the mission')
+  assert.equal(engine.episode.phase, 'success', 'three lines in one second should clear the mission')
   await engine.setSettings({ adminInstantSpacing: before, adminAutoPass: false })
 })
 
@@ -178,10 +170,18 @@ test('a preview lockout never touches the ladder, and the lease can end it', asy
 test('strike grants and revocations move the ladder for real', async () => {
   await idle()
   const start = logic.strikesFromEvents(engine.events)
+  const wokeBefore = engine.events.filter((e) => e.type === 'woke').length
   await engine.adjustStrikes(2)
   assert.equal(logic.strikesFromEvents(engine.events), start + 2)
+  // A negative grant cannot rewind a derived counter, so it resets it — and it
+  // must not be recorded as a successful wake-up, or the streak would lie.
   await engine.adjustStrikes(-2)
-  assert.equal(logic.strikesFromEvents(engine.events), start)
+  assert.equal(logic.strikesFromEvents(engine.events), 0)
+  const tail = engine.events.slice(-3).map((e) => e.type)
+  assert.ok(tail.includes('strike_reset'), `expected a strike_reset entry, got ${tail.join(',')}`)
+  assert.equal(engine.events.filter((e) => e.type === 'woke').length - wokeBefore, 0, 'a reset must not pose as a win')
+  await engine.adjustStrikes(1)
+  assert.equal(logic.strikesFromEvents(engine.events), 1)
 })
 
 test('the lease expires on its own and re-arms the punishment', async () => {

@@ -52,7 +52,7 @@ export function render(state) {
              <div class="grow">
                <div class="small" style="font-weight:700">${
                  lastOutcome.kind === 'woke'
-                   ? `Out of bed in ${logic.formatDuration(lastOutcome.completionMs)} — ${lastOutcome.mode === 'outside' ? 'fresh air' : 'three poses'} done`
+                   ? `Out of bed in ${logic.formatDuration(lastOutcome.completionMs)} — ${lastOutcome.mode === 'outside' ? 'fresh air, lines said' : 'all lines said'}`
                    : lastOutcome.kind === 'bypassed'
                    ? 'Admin override: mission blew, nothing happened'
                    : lastOutcome.kind === 'aborted'
@@ -91,8 +91,9 @@ export function render(state) {
     <div class="rules">
       <div class="rule"><div class="n"></div><div>The alarm buzzes <b>continuously for ${esc(minutes(settings.ringMinutes))}</b>. No snooze, no dismiss — it only stops when a mission is accepted.</div></div>
       <div class="rule"><div class="n"></div><div>You then get <b>${esc(minutes(settings.missionWindowMinutes))}</b> to prove you are awake:</div></div>
-      <div class="rule"><div class="n"></div><div><b>OUTSIDE</b> — one photo of where you actually are (daylight/GPS verified) plus <b>${settings.outsidePoseSelfies} pose selfie${settings.outsidePoseSelfies > 1 ? 's' : ''}</b>.</div></div>
-      <div class="rule"><div class="n"></div><div><b>INDOORS</b> — <b>${settings.insidePhotos} photos, ${esc(minutes(settings.insideSpacingMinutes))} apart</b>, each with a different random pose the app picks for you. Start it late and the maths makes it impossible.</div></div>
+      <div class="rule"><div class="n"></div><div><b>OUTSIDE</b> — ${settings.outsideSceneSeconds} s of your surroundings on the camera (it must move, and daylight/GPS have to agree), then <b>say ${settings.outsideLines} line${settings.outsideLines > 1 ? 's' : ''}</b>. Nothing is photographed.</div></div>
+      <div class="rule"><div class="n"></div><div><b>INDOORS</b> — <b>${settings.insideLines} lines, ${esc(minutes(settings.insideLineGapMinutes))} apart</b>, each a different sentence picked for you. Start late and the maths makes it impossible.</div></div>
+      <div class="rule"><div class="n"></div><div><b>NEVER TAPPED AWAKE</b> — let the ${settings.missionWindowMinutes}-minute window run out without starting a mission and the lockout is <b>${settings.neverWokeLockHours} hours</b>, whatever your strike count. Ten failed mornings is the ${settings.maxLockHours}-hour ceiling.</div></div>
       <div class="rule"><div class="n"></div><div>Miss the deadline → <b>phone locked, ${esc(logic.lockLabel(strikes + 1, settings))}</b>. Only a phone call gets through. Nothing unlocks it early.</div></div>
     </div>
   </div>

@@ -1,6 +1,7 @@
 import * as logic from '../src/logic.js'
 import { engine } from '../src/engine.js'
 import { esc, toast, attachHold, patchTimers } from '../src/ui.js'
+import { native } from '../src/native.js'
 
 // ---------------------------------------------------------------------------
 // The lockout. Deliberately boring: no games, no settings, no escape hatch
@@ -27,6 +28,7 @@ export function render(state) {
         <div class="lock-count" data-cd="${ep.lockUntil}"></div>
         <div class="lock-sub">${ep.lockMinutes >= 60 ? `${esc(logic.formatDuration(Math.max(0, ep.lockUntil - state.now)))} of ${esc(logic.formatDuration(totalMs))} served` : 'no early exit — this is the punishment, not a timeout'}</div>
         <div class="strikes">${dots}</div>
+        <div class="tiny" style="margin-top:6px;color:var(--dim-2)">${ep.neverWoke ? '<b style="color:var(--hot-2)">You never tapped awake — this is the 20-hour one.</b> ' : ''}${s.reArmAfterLockout ? 'The alarm re-arms when this ends: you still owe a wake-up.' : ''}</div>
         <div class="tiny muted" style="margin-top:8px">Strike ${ep.strike} · ${esc(ep.reason ?? '')}</div>
       </div>
 
@@ -35,7 +37,7 @@ export function render(state) {
         <div class="small" style="line-height:1.55">${esc(
           ep.acceptedAt == null
             ? `The alarm rang for ${logic.effectiveMinutes(s.ringMinutes, s).toFixed(0)} minutes and you never tapped "I'm awake". The mission window then expired.`
-            : `You accepted a ${ep.mode} mission and did not complete it before the ${logic.effectiveMinutes(s.missionWindowMinutes, s).toFixed(0)}-minute deadline. ${ep.captures.length} of ${logic.missionSteps(ep.mode, s).length} required photos submitted.`
+            : `You accepted a ${ep.mode} mission and did not complete it before the ${logic.effectiveMinutes(s.missionWindowMinutes, s).toFixed(0)}-minute deadline. ${ep.captures.length} of ${logic.missionSteps(ep.mode, s).length} proofs submitted.`
         )}</div>
         <hr class="sep" />
         <div class="tiny muted">Next time you fail: <b style="color:var(--hot-2)">${esc(logic.lockLabel(ep.strike + 1, s))}</b>. Succeed once and the ladder resets to ${esc(logic.lockLabel(1, s))}.</div>
@@ -44,6 +46,21 @@ export function render(state) {
       <div class="card" style="margin-top:10px">
         <div class="tiny muted" style="margin-bottom:8px">Progress</div>
         <div class="bar"><i data-cdbar="${ep.firedAt} ${ep.lockUntil}"></i></div>
+      </div>
+
+      <div class="card escape-card" style="margin-top:10px">
+        <div class="spread">
+          <div class="tiny" style="font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--hot-2)">Getting out</div>
+          <div class="mono" style="font-weight:800">${ep.escapeCount ?? 0} attempt${(ep.escapeCount ?? 0) === 1 ? '' : 's'}</div>
+        </div>
+        <div class="tiny muted" style="margin-top:7px">${
+          native.available
+            ? native.hardLock
+              ? 'Device owner: the system confines this task, there is no Unpin button, and shutdown / safe boot / factory reset / uninstall are blocked while the lockout runs. A reboot comes back here.'
+              : `Pinned with screen pinning, so Android shows an Unpin button. Using it is not an exit: each attempt adds ${s.escapePenaltyMinutes ?? 15} min (capped at ${Math.round((s.escapePenaltyCapMinutes ?? 240) / 60)} h) and the leash drags this screen back to the front within seconds. Rebooting does it too — BootReceiver re-applies what is left.`
+            : 'Browser build: this covers the page and nothing more is possible without the APK (docs/APK.md).'
+        }</div>
+        ${native.available && !native.hardLock ? '<button class="btn sm block" data-overlay style="margin-top:9px">Grant "display over other apps" — makes the lock unignorable</button>' : ''}
       </div>
     </div>
 
@@ -65,6 +82,16 @@ export function render(state) {
 }
 
 export function mount(root, state) {
+  root.addEventListener('click', async (e) => {
+    if (!e.target.closest('[data-overlay]')) return
+    const { native: N } = await import('../src/native.js')
+    const r = await N.requestOverlay()
+    toast(
+      r?.granted ? 'Overlay granted — the leash can pull this screen back to the front' : 'Grant it in system settings, then come back here',
+      r?.granted ? 'good' : 'bad',
+      5000
+    )
+  })
   const ep = state.episode
   root.querySelector('[data-admin-exit]')?.addEventListener('click', async () => {
     if (ep?.adminPreview) await engine.clearLockPreview()

@@ -19,7 +19,10 @@ export function render(state) {
     })
     .join('')
 
-  const evidence = shots.slice(-8).reverse()
+  // Older builds stored JPEGs. Nothing does any more: spoken proofs keep only a
+  // score, a mic peak and a duration, so the evidence panel shows the last five
+  // wake-ups as numbers instead of photographs.
+  const log = [...events].reverse().slice(0, 5)
 
   return `
   <div class="spread" style="margin:2px 2px 12px">
@@ -43,19 +46,27 @@ export function render(state) {
   </div>
 
   ${
-    evidence.length
-      ? `<div class="section-title">Evidence</div>
-         <div class="card"><div class="shots">
-           ${evidence
-             .map(
-               (s) =>
-                 `<img src="${s.dataUrl}" data-shot="${s.id}" alt="${esc(s.kind)}" style="${s.simulated ? 'filter:saturate(.4)' : ''}" />`
-             )
-             .join('')}
-         </div>
-         <div class="tiny muted" style="margin-top:9px">${shots.length} capture(s) kept on this device only. Faded = simulated, not a real photo.</div></div>`
+    shots.length
+      ? `<div class="tiny muted">${shots.length} photograph(s) kept from an earlier version of this app — nothing new is stored, the mission is spoken now.</div>`
       : ''
   }
+
+  <div class="section-title">Last five</div>
+  <div class="card log-list">
+    ${
+      log.length
+        ? log
+            .map(
+              (e) => `<div class="log-row"><b>${esc(e.type)}</b><span>${esc(logic.formatDayShort(e.at))}</span><span>${
+                e.proofs != null ? `${e.proofs} proof${e.proofs === 1 ? '' : 's'}` : e.shots ? `${e.shots} proof(s)` : ''
+              }${e.lockMinutes ? ` · ${esc(logic.formatDuration(e.lockMinutes * 60000))} locked` : ''}${
+                e.penaltyMinutes ? ` · +${e.penaltyMinutes} min escape` : ''
+              }${e.neverWoke ? ' · never woke' : ''}</span></div>`
+            )
+            .join('')
+        : '<div class="tiny muted">Nothing yet.</div>'
+    }
+  </div>
 
   <div class="section-title">History</div>
   <div class="card">
@@ -71,6 +82,10 @@ export function render(state) {
 function row(e) {
   const map = {
     woke: ['good', '😤', `Beat the alarm — ${e.mode === 'outside' ? 'went outside' : 'indoor poses'} in ${logic.formatDuration(e.completionMs ?? 0)}`],
+    debt: ['warn', '📌', 'Failed alarm re-armed — you still owe this wake-up'],
+    strike_reset: ['warn', '🧾', 'Ladder reset from the admin console — not counted as a win'],
+    escape_attempt: ['bad', '🚪', 'Tried to leave the lockout — time added'],
+    proof_rejected: ['bad', '🎙️', 'A proof was not good enough'],
     locked: ['bad', '🔒', `Locked out for ${logic.formatDuration((e.lockMinutes ?? 0) * 60000)} — ${esc(e.reason ?? '')}`],
     released: ['', '🔓', `Lockout of ${logic.formatDuration((e.lockMinutes ?? 0) * 60000)} served${e.restored ? ' (resumed after reload)' : ''}`],
     panic: ['bad', '🚨', `Panic release taken${e.penalty ? ' — strike added' : ''}`],
@@ -89,7 +104,7 @@ function row(e) {
     <div class="grow">
       <div class="small" style="font-weight:${cls ? '650' : '500'}">${text}</div>
       <div class="tiny muted">${esc(logic.formatDayShort(e.at))}${e.label ? ` · ${esc(e.label)}` : ''}${
-        e.shots != null ? ` · ${e.shots} photo(s)` : ''
+        e.proofs != null ? ` · ${e.proofs} proof(s)` : e.shots ? ` · ${e.shots} legacy capture(s)` : ''
       }${e.acceptLatencyMs != null ? ` · accepted after ${logic.formatDuration(e.acceptLatencyMs)}` : ''}</div>
     </div>
   </div>`
@@ -114,5 +129,5 @@ export function mount(root) {
 export function tick() {}
 
 export function signature(state) {
-  return `${state.events.length}:${state.shots.length}:${state.stats.strikes}`
+  return `${state.events.length}:${state.shots.length}:${state.stats.strikes}:${state.stats.failed}`
 }

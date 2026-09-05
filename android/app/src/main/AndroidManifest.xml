@@ -23,9 +23,15 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- The mission is spoken: the mic is the proof, and it is never recorded. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Android 10+ blocks background activity starts. The leash needs this so a
+         lockout can pull itself back to the front after you unpin or swipe it. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <!-- Camera is how you prove you are awake, but its absence must not make the
          app uninstallable-by-accident on a device with no front camera. -->
+    <uses-feature android:name="android.hardware.microphone" android:required="true" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
@@ -35,6 +41,11 @@
     <queries>
         <intent>
             <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <!-- Without this, package visibility hides the speech service and the
+             recogniser intent resolves to nothing on Android 11+. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
         </intent>
     </queries>
 
@@ -66,10 +77,14 @@
 
         </activity>
 
+        <!-- Doubles as the ringer and as the lockout leash: while a punishment is
+             running this is what re-applies the pin, charges escape attempts and
+             keeps the WebView's deadline honest. START_STICKY-ish by design. -->
         <service
             android:name=".RingService"
             android:enabled="true"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="mediaPlayback" />
 
         <receiver

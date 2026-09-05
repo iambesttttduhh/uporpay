@@ -20,7 +20,7 @@ export function render(state) {
           <div class="alarm-label" style="margin-top:6px">${esc(a.label)} ${a.oneShot ? '<span class="chip">one-time</span>' : ''}</div>
           <div class="chips">
             <span class="chip">${esc(logic.describeDays(a.days))}</span>
-            <span class="chip mode">${a.missionMode === 'choose' ? 'choose at alarm' : a.missionMode === 'outside' ? 'outside only' : 'indoor poses'}</span>
+            <span class="chip mode">${a.missionMode === 'choose' ? 'choose at alarm' : a.missionMode === 'outside' ? 'outside · camera + voice' : 'inside · voice'}</span>${a.debt ? '<span class="chip debt">⚠ debt</span>' : ''}
             ${next ? `<span class="chip">→ ${esc(relative(next, now))}</span>` : ''}
           </div>
         </div>
@@ -102,7 +102,7 @@ function editor(alarm) {
          <label>Mission</label>
          <select id="f-mode">
            <option value="choose">Let me choose at the alarm</option>
-           <option value="inside">Indoor poses only</option>
+           <option value="inside">Inside: say lines</option>
            <option value="outside">Outside only</option>
          </select>
        </div>

@@ -2,6 +2,9 @@ package com.uporpay.wakeorlock;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.speech.RecognizerIntent;
+import android.net.Uri;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -14,6 +17,9 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import androidx.activity.result.ActivityResult;
+
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
@@ -42,7 +48,12 @@ import java.util.Iterator;
                 // The only runtime permission this app needs that the bridge cannot
                 // grant for you. Camera and location are requested by their own
                 // Capacitor plugins, so declaring them twice would fight.
-                @Permission(alias = "notifications", strings = {Manifest.permission.POST_NOTIFICATIONS})
+                @Permission(alias = "notifications", strings = {Manifest.permission.POST_NOTIFICATIONS}),
+                // The mission is spoken, so the microphone is the whole mission.
+                @Permission(alias = "microphone", strings = {Manifest.permission.RECORD_AUDIO}),
+                // Android 10+ forbids background activity starts; the leash needs
+                // this to drag the lock screen back to the front after an escape.
+                @Permission(alias = "overlay", strings = {"android.permission.SYSTEM_ALERT_WINDOW"})
         }
 )
 public class WakeOrLockPlugin extends Plugin {
@@ -236,7 +247,7 @@ public class WakeOrLockPlugin extends Plugin {
             call.reject("until is required");
             return;
         }
-        LockGuard.engage(getContext(), until, call.getString("reason", ""));
+        LockGuard.engage(getContext(), until, call.getString("reason", ""), call.getLong("escapePenaltyMs", 0L));
         LockGuard.applyTo(getActivity());
         JSObject o = new JSObject();
         o.put("deviceOwner", LockGuard.isDeviceOwner(getActivity()));
@@ -257,9 +268,125 @@ public class WakeOrLockPlugin extends Plugin {
         JSObject o = new JSObject();
         o.put("locked", left > 0);
         o.put("remainingMs", left);
+        o.put("until", left > 0 ? System.currentTimeMillis() + left : 0);
         o.put("reason", LockGuard.reason(getContext()));
         o.put("deviceOwner", LockGuard.isDeviceOwner(getActivity()));
+        o.put("escapeCount", LockGuard.escapeCount(getContext()));
+        o.put("penaltyMs", LockGuard.prefs(getContext()).getLong("lock.penaltyCapMs", 0L) / 16L);
+        o.put("canReopen", LockGuard.canReopen(getContext()));
         call.resolve(o);
+    }
+
+    /**
+     * One spoken line, through the platform recogniser.
+     *
+     * The WebView has no Web Speech API, so the APK borrows the system dialog:
+     * it works offline on devices with an offline language pack, and it is the
+     * same recogniser the OS uses, which means an app cannot ship a fake one.
+     */
+    @PluginMethod
+    public void listen(PluginCall call) {
+        try {
+            Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            String lang = call.getString("language", "en-US");
+            i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
+            i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang);
+            i.putExtra(RecognizerIntent.EXTRA_PROMPT, call.getString("prompt", "Say the line out loud"));
+            i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+            i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
+            startActivityForResult(call, i, "speechResult");
+        } catch (Exception e) {
+            call.reject("no speech recogniser on this device: " + e.getClass().getSimpleName());
+        }
+    }
+
+    @ActivityCallback
+    private void speechResult(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        JSObject o = new JSObject();
+        try {
+            Intent data = result.getData();
+            java.util.ArrayList<String> matches =
+                    data == null ? null : data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if (matches == null || matches.isEmpty()) {
+                call.reject("no-speech");
+                return;
+            }
+            o.put("transcript", matches.get(0));
+            call.resolve(o);
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
+        }
+    }
+
+    @PluginMethod
+    public void requestMicrophone(PluginCall call) {
+        if (Build.VERSION.SDK_INT < 23
+                || ContextCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO)
+                        == PackageManager.PERMISSION_GRANTED) {
+            JSObject o = new JSObject();
+            o.put("granted", true);
+            call.resolve(o);
+            return;
+        }
+        requestPermissionForAlias("microphone", call, "microphoneResult");
+    }
+
+    @PermissionCallback
+    private void microphoneResult(PluginCall call) {
+        if (call == null) return;
+        call.resolve(granted());
+    }
+
+    /** The one permission that makes "you cannot stay out of the lock screen" work. */
+    @PluginMethod
+    public void requestOverlay(PluginCall call) {
+        JSObject o = new JSObject();
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            o.put("granted", true);
+            call.resolve(o);
+            return;
+        }
+        if (Settings.canDrawOverlays(getContext())) {
+            o.put("granted", true);
+            call.resolve(o);
+            return;
+        }
+        try {
+            Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getContext().getPackageName()));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+            o.put("granted", false);
+            o.put("openedSettings", true);
+            call.resolve(o);
+        } catch (Exception e) {
+            call.reject(e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void startLeash(PluginCall call) {
+        try {
+            Intent i = new Intent(getContext(), RingService.class);
+            i.setAction(RingService.ACTION_LEASH);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) getContext().startForegroundService(i);
+            else getContext().startService(i);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("leash refused: " + e.getClass().getSimpleName());
+        }
+    }
+
+    @PluginMethod
+    public void stopLeash(PluginCall call) {
+        try {
+            Intent i = new Intent(getContext(), RingService.class);
+            i.setAction(RingService.ACTION_LEASH_STOP);
+            getContext().startService(i);
+        } catch (Exception ignored) {}
+        call.resolve();
     }
 
     /** Three doors the user has to open by hand; the app can only point at them. */

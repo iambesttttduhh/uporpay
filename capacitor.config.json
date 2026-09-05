@@ -7,10 +7,5 @@
     "captureInput": true,
     "webContentsDebuggingEnabled": false,
     "backgroundColor": "#07080c"
-  },
-  "plugins": {
-    "Camera": {
-      "precision": 0.9
-    }
   }
 }

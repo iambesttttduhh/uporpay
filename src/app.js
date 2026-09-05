@@ -144,6 +144,13 @@ async function render(force = false) {
   current?.view?.unmount?.()
   app.innerHTML = shell(route, state)
   const root = app.querySelector('#screen') ?? app
+  // A takeover is not a page in the shell — it *is* the screen. The overlay
+  // classes carry the full-bleed background, the padding and (for the ring) the
+  // shake, so they have to be on the element that covers everything.
+  const overlayKind = overlay ? overlay.key.split(':')[0] : null
+  if (root !== app && (overlayKind === 'ring' || overlayKind === 'mission' || overlayKind === 'lock')) {
+    root.className = `overlay overlay--${overlayKind}`
+  }
   current = { key, view, root, overlay }
   root.innerHTML = view.render(state)
   await view.mount?.(root, state)

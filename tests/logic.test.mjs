@@ -5,13 +5,31 @@ import * as L from '../src/logic.js'
 const real = { ...L.DEFAULT_SETTINGS, demoTiming: false, testMode: false }
 const demo = { ...L.DEFAULT_SETTINGS, demoTiming: true }
 
+// The two numbers the user picked and refuses to have "smoothed": ten failed
+// mornings is a ten-hour lock, and never tapping awake at all is a 20-hour lock.
 test('lock ladder escalates with consecutive failures and caps out', () => {
   assert.equal(L.lockMinutesFor(1, real), 60) // 1 h
   assert.equal(L.lockMinutesFor(2, real), 120) // 2 h
-  assert.equal(L.lockMinutesFor(3, real), 240) // 4 h
-  assert.equal(L.lockMinutesFor(9, real), 24 * 60) // curve exhausted → 24 h cap
+  assert.equal(L.lockMinutesFor(9, real), 9 * 60)
+  assert.equal(L.lockMinutesFor(10, real), 10 * 60) // ten strikes = ten hours
+  assert.equal(L.lockMinutesFor(14, real), 10 * 60) // past the list → last rung
   assert.equal(L.lockMinutesFor(0, real), 60) // clamped to first rung
   assert.equal(L.lockMinutesFor(4, { ...real, maxLockHours: 3 }), 180) // user cap wins
+})
+
+test('never tapping awake is its own, much bigger rule', () => {
+  // Strike 1 would normally be an hour; asleep through the whole window is 20.
+  assert.equal(L.lockMinutesFor(1, real, { neverWoke: true }), 20 * 60)
+  assert.equal(L.lockMinutesFor(7, real, { neverWoke: true }), 20 * 60)
+  // …and the user cap still applies, so the copy can promise it.
+  assert.equal(L.lockMinutesFor(1, { ...real, maxLockHours: 6 }, { neverWoke: true }), 6 * 60)
+})
+
+test('escape attempts are priced, not forbidden', () => {
+  assert.equal(L.escapePenaltyMs(real), 15 * 60_000)
+  // A silly penalty setting can never exceed the cap.
+  assert.equal(L.escapePenaltyMs({ ...real, escapePenaltyMinutes: 600 }), 240 * 60_000)
+  assert.equal(L.DEFAULT_SETTINGS.reArmAfterLockout, true) // the alarm comes back
 })
 
 test('demo timing compresses the ladder by 60x', () => {
@@ -42,42 +60,71 @@ test('dueAlarm fires inside the lookback window and not twice', () => {
 })
 
 test('inside mission becomes impossible if you start it too late', () => {
-  const firedAt = 0
-  const episode = { firedAt, missionDeadlineAt: 30 * 60_000, startedMissionAt: 0 }
-  // 3 photos need 2 gaps of 10 min = 20 min. 30 left → possible.
+  const episode = { firedAt: 0, missionDeadlineAt: 30 * 60_000, startedMissionAt: 0 }
+  // 3 lines a minute apart need 2 minutes of gaps. 30 minutes left → possible.
   assert.equal(L.insideMissionPossible(0, episode, real), true)
-  // 9 minutes left → cannot fit 20 minutes of spacing
-  assert.equal(L.insideMissionPossible(21 * 60_000, episode, real), false)
-  assert.match(L.insideMissionBlockedReason(21 * 60_000, episode, real), /need 20 m 0 s/)
+  // 2 minutes left is exactly enough; 1 minute is not.
+  assert.equal(L.insideMissionPossible(28 * 60_000, episode, real), true)
+  assert.equal(L.insideMissionPossible(29 * 60_000, episode, real), false)
+  assert.match(L.insideMissionBlockedReason(29 * 60_000, episode, real), /need 2 m 0 s/)
+  // Fewer lines → the option stays open longer.
+  assert.equal(L.insideMissionPossible(29 * 60_000, episode, { ...real, insideLines: 2 }), true)
 })
 
-test('capture spacing is enforced from the previous accepted shot', () => {
+test('line spacing is enforced from the previous accepted line', () => {
   const prev = 1000
-  const episode = { mode: 'inside', firedAt: 0, captures: [{ at: prev }] }
-  assert.equal(L.earliestNextCaptureAt(episode, real), prev + 10 * 60_000)
-  // outside mode has no spacing requirement between its two shots
-  assert.equal(L.earliestNextCaptureAt({ ...episode, mode: 'outside' }, real), 0)
-})
-
-test('mission steps are generated per mode', () => {
-  assert.deepEqual(
-    L.missionSteps('inside', real).map((s) => s.kind),
-    ['pose-selfie', 'pose-selfie', 'pose-selfie']
-  )
-  assert.deepEqual(
-    L.missionSteps('outside', real).map((s) => s.kind),
-    ['outside-scenery', 'pose-selfie']
+  const inside = { mode: 'inside', firedAt: 0, startedMissionAt: 0, captures: [{ at: prev }] }
+  assert.equal(L.earliestNextCaptureAt(inside, real), prev + 60_000) // one minute
+  // Outside: the scenery hold has no wait before it, and neither does the first
+  // line after it — you are already up and walking by then.
+  const outside = { mode: 'outside', firedAt: 0, startedMissionAt: 0, captures: [] }
+  assert.equal(L.earliestNextCaptureAt(outside, real), 0)
+  assert.equal(L.earliestNextCaptureAt({ ...outside, captures: [{ at: prev }] }, real), 0)
+  // The second line does wait.
+  assert.equal(
+    L.earliestNextCaptureAt({ ...outside, captures: [{ at: prev }, { at: prev + 500 }] }, real),
+    prev + 500 + 60_000
   )
 })
 
-test('pose selection is deterministic per episode but differs across episodes', () => {
-  const a = L.poseForStep(L.episodeSeed({ alarmId: 'x', firedAt: 1 }), 0).id
-  const aAgain = L.poseForStep(L.episodeSeed({ alarmId: 'x', firedAt: 1 }), 0).id
-  assert.equal(a, aAgain)
+test('mission steps are generated per mode — and none of them is a photo', () => {
+  assert.deepEqual(L.missionSteps('inside', real).map((s) => s.kind), ['voice', 'voice', 'voice'])
+  assert.deepEqual(L.missionSteps('inside', real).map((s) => s.gap), [false, true, true])
+  assert.deepEqual(L.missionSteps('outside', real).map((s) => s.kind), ['scene', 'voice', 'voice'])
+  assert.equal(L.missionSteps('outside', real)[0].gap, false)
+  assert.deepEqual(
+    L.missionSteps('inside', { ...real, insideLines: 5 }).map((s) => s.kind),
+    ['voice', 'voice', 'voice', 'voice', 'voice']
+  )
+  assert.ok(!JSON.stringify(L.missionSteps('outside', real)).includes('photo'))
+})
+
+test('line selection is deterministic per episode but differs across episodes', () => {
+  const a = L.lineForStep(L.episodeSeed({ alarmId: 'x', firedAt: 1 }), 0)
+  const aAgain = L.lineForStep(L.episodeSeed({ alarmId: 'x', firedAt: 1 }), 0)
+  assert.deepEqual(a, aAgain) // a refresh must not reroll an easier sentence
   const spread = new Set(
-    Array.from({ length: 200 }, (_, i) => L.poseForStep(L.episodeSeed({ alarmId: 'x', firedAt: i }), 0).id)
+    Array.from({ length: 200 }, (_, i) => L.lineForStep(L.episodeSeed({ alarmId: 'x', firedAt: i }), 0).id)
   )
-  assert.ok(spread.size >= 8, `expected a spread of poses, got ${spread.size}`)
+  assert.ok(spread.size >= 8, `expected a spread of lines, got ${spread.size}`)
+  // Consecutive steps in one episode are different sentences.
+  const seed = L.episodeSeed({ alarmId: 'y', firedAt: 7 })
+  assert.notEqual(L.lineForStep(seed, 0).id, L.lineForStep(seed, 1).id)
+})
+
+test('a line only counts if most of the words are there', () => {
+  const want = 'I am standing up and I said the sentence out loud'
+  assert.equal(L.scoreTranscript(want, want).score, 1)
+  assert.deepEqual(L.scoreTranscript(want, want).missing, [])
+  assert.ok(L.scoreTranscript(want, 'standing up said sentence out loud').score > 0.5)
+  assert.equal(L.scoreTranscript(want, '').score, 0)
+  assert.equal(L.scoreTranscript(want, 'the').score, 1 / L.normalizeWords(want).length)
+  // words read out of order must not pass: subsequence, not bag-of-words
+  const backwards = want.split(' ').reverse().join(' ')
+  assert.ok(L.scoreTranscript(want, backwards).score < 0.6, backwards)
+  // and it tells you which words you skipped, for the failure copy
+  assert.deepEqual(L.scoreTranscript('alpha beta gamma delta epsilon', 'alpha gamma epsilon').missing, ['beta', 'delta'])
+  assert.ok(L.MIN_LINE_WORDS >= 5) // nothing you can mumble in one word
 })
 
 test('strikes reset on a successful wake, accumulate on failures', () => {
@@ -105,10 +152,14 @@ test('event summary rolls up streak and locked time', () => {
 })
 
 test('demo divisor compresses every time rule consistently', () => {
-  assert.equal(L.ringMs(demo), 5_000)
-  assert.equal(L.missionWindowMs(demo), 30_000)
-  assert.equal(L.spacingMs(demo), 10_000)
+  assert.equal(L.ringMs(demo), 5_000) // 5 min → 5 s
+  assert.equal(L.missionWindowMs(demo), 20_000) // 20 min → 20 s
+  assert.equal(L.spacingMs(demo), 1_000) // 1 min → 1 s
+  assert.equal(L.sceneHoldMs(demo), 200) // 12 s → 200 ms
   assert.equal(L.ringMs(real), 5 * 60_000)
+  assert.equal(L.missionWindowMs(real), 20 * 60_000)
+  assert.equal(L.spacingMs(real), 60_000)
+  assert.equal(L.sceneHoldMs(real), 12_000)
 })
 
 test('countdown formatting stays readable across scales', () => {
