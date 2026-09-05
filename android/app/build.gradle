@@ -11,6 +11,14 @@ if (keystorePropertiesFile.exists()) {
     logger.lifecycle("signing release build with " + keystoreProperties['storeFile'])
 }
 
+// Build identity. CI exports GITHUB_RUN_NUMBER (monotonic) and GITHUB_SHA, so a
+// CI-built APK says which commit it is and installs cleanly over the previous
+// build: with a hand-edited `versionCode 1` forever, the day someone bumps it is
+// the day older installs start refusing the new one as a downgrade.
+def ciRun = (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+def ciSha = (System.getenv('GITHUB_SHA') ?: '')
+def buildCode = ciRun.isInteger() ? ciRun.toInteger() : 0
+
 android {
     namespace "com.uporpay.wakeorlock"
     compileSdk rootProject.ext.compileSdkVersion
@@ -18,8 +26,8 @@ android {
         applicationId "com.uporpay.wakeorlock"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode buildCode > 0 ? buildCode : 1
+        versionName "1.0." + (buildCode > 0 ? buildCode : 0) + (ciSha ? "+" + ciSha.substring(0, Math.min(7, ciSha.length())) : "+dev")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

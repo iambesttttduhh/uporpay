@@ -129,3 +129,23 @@ test('the lock counts down to release and hands the shell back', async () => {
   assert.equal(doc.querySelector('.overlay--lock'), null, 'lock overlay must be gone')
   assert.notEqual(doc.querySelector('.nav').style.display, 'none', 'nav returns')
 })
+
+test('the staged bundle and the APK both say which commit they are', async () => {
+  // A build is handed around over chat and installed over itself, so it has to be
+  // identifiable from inside the app — a filename in Downloads is not a version,
+  // and `versionCode 1` forever eventually makes Android refuse the new build.
+  const { readFile } = await import('node:fs/promises')
+  const json = JSON.parse(await readFile(new URL('../www/native.json', import.meta.url), 'utf8'))
+  assert.equal(json.native, true, 'the marker only ships in the staged bundle')
+  assert.match(json.rev, /^[0-9a-f]{7,40}$/, 'the bundle carries the commit it was built from')
+  assert.equal(typeof json.builtAt, 'string')
+
+  const gradle = await readFile(new URL('../android/app/build.gradle', import.meta.url), 'utf8')
+  assert.match(gradle, /GITHUB_RUN_NUMBER/, 'versionCode comes from CI, not from a hand-edit')
+  assert.match(gradle, /versionName "1\.0\." \+/, 'versionName is derived too')
+  assert.doesNotMatch(gradle, /^\s*versionCode 1\s*$/m, 'no frozen versionCode')
+
+  // and the settings sheet reads it back out
+  const { nativeInfo } = await import('../src/native.js')
+  assert.ok('rev' in nativeInfo(), 'the bridge surfaces the stamp even where the native plugin is absent')
+})

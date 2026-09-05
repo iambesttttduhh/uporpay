@@ -10,6 +10,7 @@
 // ---------------------------------------------------------------------------
 import { cp, mkdir, rm, writeFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { execFileSync } from 'node:child_process'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const OUT = join(ROOT, 'www')
@@ -34,7 +35,22 @@ for (const d of DIRS) {
 
 // A tiny native marker the app reads at boot. Keeping it a file (rather than
 // editing index.html during the copy) means the browser build is untouched.
-await writeFile(join(OUT, 'native.json'), JSON.stringify({ native: true, builtAt: new Date().toISOString() }, null, 2))
+// Stamp the build with the commit it came from: this APK gets handed around over
+// chat and installed over itself, so "which build is this" has to be answerable
+// from inside the app, not from the filename in the Downloads folder.
+const git = (args) => {
+  try {
+    return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {
+    return ''
+  }
+}
+const rev = (process.env.GITHUB_SHA || git(['rev-parse', 'HEAD'])).slice(0, 7) || 'unknown'
+const described = git(['describe', '--tags', '--always']) || rev
+await writeFile(
+  join(OUT, 'native.json'),
+  JSON.stringify({ native: true, builtAt: new Date().toISOString(), rev, described }, null, 2)
+)
 
 const { readdir } = await import('node:fs/promises')
 const walk = async (dir) => {

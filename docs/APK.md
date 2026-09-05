@@ -17,8 +17,9 @@ launch (including a launch after a reboot), and calls `startLockTask()`.
 
 A prebuilt debug APK is published by CI to a rolling prerelease:
 
-**[`wake-or-lock-debug.apk`](https://github.com/iambesttttduhh/uporpay/raw/arena/01a06c90-uporpay/builds/wake-or-lock-debug.apk)** — 4.35 MB (4,348,259 bytes), `minSdk 22`, `targetSdk 34`,
-debug-signed, sha256 `cb1fac930fe90f32…` (see `builds/SHA256SUMS.txt`). CI commits this file into
+**[`wake-or-lock-debug.apk`](https://github.com/iambesttttduhh/uporpay/raw/arena/01a06c90-uporpay/builds/wake-or-lock-debug.apk)** — ~4.4 MB, `minSdk 22`, `targetSdk 34`, debug-signed.
+Its exact byte count and sha256 are in `builds/SHA256SUMS.txt`, committed beside it, and
+`versionName` in the manifest reads `1.0.<CI run>+<commit7>`. CI commits this file into
 `builds/` on every build, so the repo copy is always current; the browser needs a GitHub sign-in
 because the repository is private.
 
@@ -128,8 +129,12 @@ Settings → **Android engine** shows what the OS actually granted you:
 
 ## Release notes / versioning
 
-`android/app/build.gradle` holds `versionCode` / `versionName`. Bump `versionCode` for anything
-you intend to install over a previous build; Android refuses a downgrade.
+`android/app/build.gradle` derives both numbers from the build itself: CI exports `GITHUB_RUN_NUMBER`
+into `versionCode` (monotonic, so every CI build installs over the last one — Android refuses a
+downgrade) and `GITHUB_SHA` into `versionName`, which then reads `1.0.<run>+<sha7>`. Settings → Data
+on this device shows the same stamp from `www/native.json`, written by `tools/build-www.mjs`, so a
+build can be identified from inside the app rather than from a download filename. A local
+`./gradlew assembleDebug` falls back to `1.0.0+dev` and `versionCode 1`.
 
 ## Files
 

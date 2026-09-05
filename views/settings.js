@@ -349,6 +349,10 @@ async function dataSheet() {
   openSheet(
     `<h3>Data on this device</h3>
      <div class="tiny muted" style="line-height:1.6">
+       <b>Build</b> ${(() => {
+         const n = nativeInfo()
+         return n?.rev ? `${esc(String(n.rev))}${n.described && n.described !== n.rev ? ` (<code>${esc(String(n.described))}</code>)` : ''}, native APK${n.builtAt ? `, staged ${esc(String(n.builtAt).slice(0, 16).replace('T', ' '))} UTC` : ''}.` : 'browser/dev — no stamped bundle, so the APK-only code paths are off.'
+       })()}<br/><br/>
        Alarms, strike history and the proof log live in IndexedDB on this phone. Nothing is uploaded — there is no server in this project. No photographs and no audio are stored: a proof is a score, a mic level and a duration.<br/><br/>
        The last moment this app saw your clock is kept next to it: wind the time back to escape a lockout and the lockout grows by exactly what you took. Deleting the data deletes your strikes with it, though — that is the one honest escape route in this build, and it is why a real version needs the native lock.
      </div>

@@ -64,8 +64,11 @@ FIRST THINGS TO CLICK
 
 THE APK (this is the one that can actually hold your phone)
 
-    builds/wake-or-lock-debug.apk        in this repo, 4,348,259 bytes (4.35 MB)
-    sha256                               builds/SHA256SUMS.txt
+    builds/wake-or-lock-debug.apk        in this repo, ~4.4 MB, debug-signed
+    size + sha256                        builds/SHA256SUMS.txt (CI rewrites it
+                                         next to every build)
+    which commit it is                     versionName 1.0.<CI run>+<sha7>, and
+                                         Settings -> Data on this device prints it too
     (the repo is private: sign in to GitHub to download from the web UI, or
      gh api repos/iambesttttduhh/uporpay/contents/builds/wake-or-lock-debug.apk \
        -q .content | base64 -d > wake-or-lock-debug.apk

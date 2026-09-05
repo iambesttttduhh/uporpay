@@ -18,6 +18,12 @@ const state = {
   Camera: null,
   Geolocation: null,
   status: {},
+  // Which commit this bundle was staged from (www/native.json). Declared up front
+  // so the key always exists: a settings screen that prints `undefined` next to
+  // "Build" is how you end up unable to tell a dev server from a shipped APK.
+  rev: null,
+  builtAt: null,
+  described: null,
 }
 
 function bridge() {
@@ -38,6 +44,11 @@ export async function detect(force = false) {
     const res = await fetch('/native.json', { cache: 'no-store' })
     if (res.ok) {
       const info = await res.json()
+      // The stamp is worth reading even in a build where the bridge is missing,
+      // so the settings sheet can always answer "which commit am I looking at".
+      state.rev = info?.rev ?? null
+      state.builtAt = info?.builtAt ?? null
+      state.described = info?.described ?? null
       if (info?.native) {
         const plugins = bridge()
         state.plugin = plugins?.WakeOrLock ?? null
