@@ -74,9 +74,22 @@ The camera, GPS, wake lock and service worker are all **secure-context only**. `
 
 ### As an APK (the version that works when the app is closed)
 
-**Download the current build:** [wake-or-lock-debug.apk (6.8 MB, debug-signed)](https://github.com/iambesttttduhh/uporpay/releases/download/wake-or-lock-debug/wake-or-lock-debug.apk)
-— published by CI from the latest `android/` in this repo. You need to be signed in to GitHub
-(the repo is private). Install it directly, or over USB with `adb install -r`.
+**Download the current build:** [wake-or-lock-debug.apk](
+https://github.com/iambesttttduhh/uporpay/raw/arena/01a06c90-uporpay/builds/wake-or-lock-debug.apk)
+— 4.35 MB (4,348,259 bytes), debug-signed, `minSdk 22`, `targetSdk 34`,
+sha256 `cb1fac930fe90f3238283163b617f0d06437bb44e3ad84908dd84b3682dda4a4`
+(the full digest lives in [builds/SHA256SUMS.txt](https://github.com/iambesttttduhh/uporpay/blob/arena/01a06c90-uporpay/builds/SHA256SUMS.txt)).
+
+That file is committed into `builds/` by CI on every build, so **the copy in the repo is the
+newest build** — you never need a release to get it. Swap the branch in the URL for `main` once
+this is merged. There is also a rolling prerelease holding the CI-published build,
+[wake-or-lock-debug](https://github.com/iambesttttduhh/uporpay/releases/tag/wake-or-lock-debug), refreshed by pushing a `v*` tag or the *publish* input on the
+workflow, if you would rather have release notes next to it.
+
+The repo is private, so either sign in to GitHub in the browser you download from, or fetch it
+from a terminal: `gh api repos/iambesttttduhh/uporpay/contents/builds/wake-or-lock-debug.apk -q
+.content | base64 -d > wake-or-lock-debug.apk`. Install it directly on the phone, or over USB with
+`adb install -r builds/wake-or-lock-debug.apk`.
 
 What is inside it: `AlarmManager.setAlarmClock` wake-ups that fire with the app killed, a
 foreground ring service on the alarm audio stream, a full-screen alarm UI over a locked screen,

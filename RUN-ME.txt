@@ -64,8 +64,13 @@ FIRST THINGS TO CLICK
 
 THE APK (this is the one that can actually hold your phone)
 
-    builds/wake-or-lock-debug.apk        in this repo, ~7 MB, debug-signed
+    builds/wake-or-lock-debug.apk        in this repo, 4,348,259 bytes (4.35 MB)
     sha256                               builds/SHA256SUMS.txt
+    (the repo is private: sign in to GitHub to download from the web UI, or
+     gh api repos/iambesttttduhh/uporpay/contents/builds/wake-or-lock-debug.apk \
+       -q .content | base64 -d > wake-or-lock-debug.apk
+     or the prerelease "wake-or-lock-debug", which CI attaches to on a
+     v* tag / the workflow's publish input (see docs/APK.md))
 
     1. Copy it to the phone (cable, Drive, whatever) and open it.
        Allow "install unknown apps" for whatever you opened it with.
@@ -100,7 +105,7 @@ THE APK (this is the one that can actually hold your phone)
 
     From this folder as a web server, the two files are also downloadable:
         /builds/wake-or-lock-debug.apk        the installable app
-        /wake-or-lock.zip                     this folder + the APK (105 files, 4 MB)
+        /wake-or-lock.zip                     this folder + the APK (106 files, 4.1 MB)
     rebuild the zip with:  npm run zip
 
     Docs: docs/APK.md (permissions, what is native)

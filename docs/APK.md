@@ -17,9 +17,15 @@ launch (including a launch after a reboot), and calls `startLockTask()`.
 
 A prebuilt debug APK is published by CI to a rolling prerelease:
 
-**[`wake-or-lock-debug.apk`](https://github.com/iambesttttduhh/uporpay/releases/download/wake-or-lock-debug/wake-or-lock-debug.apk)** — 6.8 MB, `minSdk 22`, `targetSdk 34`, debug-signed.
-`v*` tags and the manual *publish* input both refresh it; the artifact of every individual run is
-also kept for 90 days under **Actions → Android APK → the run → Artifacts**.
+**[`wake-or-lock-debug.apk`](https://github.com/iambesttttduhh/uporpay/raw/arena/01a06c90-uporpay/builds/wake-or-lock-debug.apk)** — 4.35 MB (4,348,259 bytes), `minSdk 22`, `targetSdk 34`,
+debug-signed, sha256 `cb1fac930fe90f32…` (see `builds/SHA256SUMS.txt`). CI commits this file into
+`builds/` on every build, so the repo copy is always current; the browser needs a GitHub sign-in
+because the repository is private.
+
+The build is also attached to the rolling prerelease [wake-or-lock-debug](https://github.com/iambesttttduhh/uporpay/releases/tag/wake-or-lock-debug) — that is the
+link to hand to someone who wants release notes with the build. `v*` tags and the manual *publish*
+input both refresh it, and the artifact of every individual run is kept for 90 days under
+**Actions → Android APK → the run → Artifacts**.
 
 Because it is debug-signed with the Android debug key, every build installs over the previous one
 and keeps your strike history. If you would rather have your own signature, build a release APK
