@@ -42,6 +42,7 @@ Succeed once and the ladder resets to strike 1. Ten failed mornings is a ten-hou
 - **No photographs. None.** There is no `<input type="file">`, no `toDataURL`, no `MediaRecorder` and no `captureStream` in the mission flow — the app cannot produce an image file even if it wanted to. Proof is a live view plus a spoken sentence, and what lands in the journal is a score, a mic peak and a duration.
 - **Getting out is charged, not allowed.** In the APK, unpinning the task, going home, or force-stopping the app is noticed by a leash loop in the foreground service: it bills the escape (15 min each, capped at 4 h by default) and drags the lock screen back to the front. Rebooting re-applies the remaining time from `BootReceiver`.
 - **No dismiss, no snooze, no back button.** While the ring or the lock is up, the takeover screen swallows `popstate`, blocks `Escape`, keeps a wake lock, and asks for fullscreen.
+- **A web page cannot lock the operating system.** The browser build covers the page, swallows the back button and bills you for hiding the tab, and the alarm fires as long as the tab (or the installed PWA) is alive. The APK is what rings from a dead background state and holds the screen; see `docs/NATIVE.md`, `docs/APK.md` and `docs/DEVICE_OWNER.md`.
 
 ## Run it
 
@@ -49,7 +50,7 @@ Succeed once and the ladder resets to strike 1. Ten failed mornings is a ten-hou
 
 ```bash
 node serve.js              # → http://localhost:5173
-npm test                   # 58 tests, if you want to see the rules prove themselves
+npm test                   # 65 tests, if you want to see the rules prove themselves
 node serve.js --https      # self-signed cert, minted into ./certs on first run
 ```
 

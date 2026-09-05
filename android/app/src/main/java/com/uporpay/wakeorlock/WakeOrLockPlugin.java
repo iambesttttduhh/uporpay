@@ -71,6 +71,13 @@ public class WakeOrLockPlugin extends Plugin {
         o.put("notificationsGranted", notificationGranted());
         o.put("dueAlarms", AlarmStore.due(getContext()).length());
         o.put("sdk", Build.VERSION.SDK_INT);
+        // What the lock screen needs to tell the truth about: how many escapes have
+        // been billed, and whether the leash is allowed to pull us back on top.
+        o.put("escapeCount", LockGuard.escapeCount(getContext()));
+        o.put("canReopen", LockGuard.canReopen(getContext()));
+        o.put("overlay", Build.VERSION.SDK_INT >= 23 && Settings.canDrawOverlays(getContext()));
+        o.put("microphoneGranted", ContextCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED);
         call.resolve(o);
     }
 
