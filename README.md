@@ -115,7 +115,7 @@ permissions, the "why is my alarm not firing on a Xiaomi" checklist and what is 
 **[docs/APK.md](docs/APK.md)**. Provisioning the device-owner build that removes the escape hatch:
 **[docs/DEVICE_OWNER.md](docs/DEVICE_OWNER.md)**.
 
-⚠️ One honest warning that has nothing to do with bugs: an app that confiscates your phone at 7 a.m. is a bad idea if your morning has anything in it that needs a phone — a kid, a commute you navigate, a work ping. Turn on *Panic release* in Settings if there's any chance of that, or don't run the native build at all.
+⚠️ One honest warning that has nothing to do with bugs: an app that confiscates your phone at 7 a.m. is a bad idea if your morning has anything in it that needs a phone — a kid, a commute you navigate, a work ping. Turn on *Panic release* in Settings, or keep the admin *Key exits the app* switch on so `0000` + Enter closes it for real, if there's any chance of that — and don't run the native build at all if neither appeals.
 
 ## Layout
 
@@ -165,12 +165,24 @@ There is no server, so there are no accounts — what exists instead is a **PIN-
 
 Reach it: bottom nav → 🔐 Admin, or long-press the header. Factory PIN **`0000`** (change it in the console).
 
+**The PIN doubles as an exit key** (*Key exits the app*, on by default): Enter at that gate takes
+the lease **and closes the app**. On Android it is a real close — `WakeOrLockPlugin.exitApp()` stops
+the ring service, stops the leash loop that would otherwise drag the lock screen back after you,
+releases the lock-task and finishes the task. Nothing scheduled is cancelled, so the 06:40 alarm
+still owns tomorrow. The exit is journaled as 🗝 *admin exit* with **no strike and no win**: it is a
+tester's door, not a morning you earned, and the streak must not grow from it. In a browser the
+app can only disarm and hand the shell back (a page cannot close its own tab) and it says so in
+those words. Switch it off in the console, or from the link under the PIN box, if you want the
+lease alone. Anything live is dropped the same way `adminAbort` does it, so `Settings → Panic
+release` is no longer the only way out of a lock you did not mean to start.
+
 | Switch | Effect |
 | --- | --- |
 | **No lockouts** (default on) | A blown mission closes as `bypassed` — ring stops, no lock screen, **no strike**. Enforced in `engine._fail()` via `logic.shouldLockOut()` |
-| Auto-pass captures | Any frame is accepted; the checks still run and each rejection is stored, marked `autoPassed` |
-| Ignore line gaps | Say all 3 indoor lines in one second |
+| Auto-pass proofs | Any proof is accepted — spoken line, typed line or live scene read; the checks still run and each failure is stored, marked `autoPassed` |
+| Ignore line gaps | Say all 3 indoor lines back-to-back instead of a minute apart |
 | Silent ring | Full takeover UI, no siren, no vibration |
+| **Key exits the app** (default on) | The PIN also closes the app after disarming anything live; see above |
 
 Plus a punishment lab (preview the lock screen for 30 s / 2 min without touching your record, grant or revoke real strikes, edit the ladder live), an episode sandbox (fire a rigged alarm, fast-forward the buzz / deadline / lockout, abort an episode), and state inspection + full export.
 

@@ -130,6 +130,7 @@ export const DEFAULT_SETTINGS = {
   adminAutoPass: false,       // accept any capture, checks recorded but non-binding
   adminInstantSpacing: false, // no 10-minute wait between indoor shots
   adminQuietRing: false,      // ring silently while testing the flow
+  adminExitOnUnlock: true,    // the PIN doubles as an exit key: Enter also closes the app
 
   // --- escape hatches (see README: a real hard lock needs care) ------------
   panicReleaseEnabled: false, // hold-to-release button on the lock screen
@@ -389,6 +390,7 @@ export function adminActiveFlags(settings) {
   if (settings.adminAutoPass) flags.push('auto-pass')
   if (settings.adminInstantSpacing) flags.push('no spacing')
   if (settings.adminQuietRing) flags.push('silent')
+  if (settings.adminExitOnUnlock) flags.push('key exits')
   return flags
 }
 

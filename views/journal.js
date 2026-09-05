@@ -87,6 +87,7 @@ function row(e) {
     debt: ['warn', '📌', 'Failed alarm re-armed — you still owe this wake-up'],
     strike_reset: ['warn', '🧾', 'Ladder reset from the admin console — not counted as a win'],
     escape_attempt: ['bad', '🚪', 'Tried to leave the lockout — time added'],
+    admin_exit: ['warn', '🗝', `Closed with the admin key (${esc(e.via ?? 'apk')})${e.aborted ? ' — a live episode was disarmed' : ''}; no strike, no win`],
     clock: ['bad', '⏱', `The device clock was moved — ${logic.formatDuration(e.addedMs ?? 0)} added back${e.backMs ? ' (jumped ' + logic.formatDuration(e.backMs) + ' into the past)' : ''}`],
     proof_rejected: ['bad', '🎙️', 'A proof was not good enough'],
     locked: ['bad', '🔒', `Locked out for ${logic.formatDuration((e.lockMinutes ?? 0) * 60000)} — ${esc(e.reason ?? '')}`],

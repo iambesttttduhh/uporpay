@@ -1145,6 +1145,26 @@ class Engine {
     return true
   }
 
+  /**
+   * The admin key as an exit: `0000` + Enter at the admin gate disarms whatever is
+   * live and asks the host to close. Neither a strike nor a win — the PIN is a
+   * tester's door, not a morning you earned — so it is journaled as an admin exit and
+   * leaves `lastOutcome` as aborted rather than letting the streak grow.
+   */
+  async adminExit({ reason = 'admin key' } = {}) {
+    const aborted = await this.adminAbort()
+    if (!aborted) {
+      alarmSound.stop()
+      releaseWakeLock()
+      exitFullscreen()
+    }
+    const via = native.available ? 'apk' : 'browser'
+    if (native.available) await native.exitApp()
+    await this._logEvent({ type: 'admin_exit', reason, aborted, via })
+    this._emit()
+    return { ok: true, aborted, native: native.available, via }
+  }
+
   /** +1 / -1 on the ladder, written as real log entries so it stays coherent. */
   async adjustStrikes(delta) {
     if (delta > 0) {

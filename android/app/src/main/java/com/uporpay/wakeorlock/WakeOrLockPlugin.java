@@ -396,6 +396,41 @@ public class WakeOrLockPlugin extends Plugin {
         call.resolve();
     }
 
+    /**
+     * The admin key's back door: 0000 at the admin gate closes the app. Everything the
+     * app holds against you is released first — a "close" that leaves a foreground
+     * service shouting and a lock-task pinned is not a close. Scheduled AlarmManager
+     * wake-ups are deliberately untouched, because an exit hatch that silently deletes
+     * tomorrow's alarm is not an exit hatch, it is a way to break the app.
+     */
+    @PluginMethod
+    public void exitApp(PluginCall call) {
+        Context c = getContext();
+        try {
+            Intent leash = new Intent(c, RingService.class);
+            leash.setAction(RingService.ACTION_LEASH_STOP);
+            c.startService(leash);
+            Intent ring = new Intent(c, RingService.class);
+            ring.setAction(RingService.ACTION_STOP);
+            c.startService(ring);
+        } catch (Exception ignored) {}
+        LockGuard.release(c);
+        // Answer first: the activity is about to disappear and the caller deserves
+        // to know the request was accepted rather than timing out on a dead bridge.
+        call.resolve();
+        final android.app.Activity a = getActivity();
+        if (a != null) {
+            a.runOnUiThread(() -> {
+                try { a.stopLockTask(); } catch (Exception ignored) {}
+                try {
+                    a.finishAndRemoveTask();
+                } catch (Exception ignored) {
+                    try { a.moveTaskToBack(true); } catch (Exception ignored2) {}
+                }
+            });
+        }
+    }
+
     /** Three doors the user has to open by hand; the app can only point at them. */
     @PluginMethod
     public void openBatterySettings(PluginCall call) {

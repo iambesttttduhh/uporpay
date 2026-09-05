@@ -157,6 +157,16 @@ export const native = {
     return call('stopLeash', {}, null)
   },
 
+  /**
+   * Admin exit key. The native side drops the ring service, the leash loop and the
+   * lock-task before it closes, so this is a real close and not a page hide. It does
+   * not cancel anything in AlarmManager: closing the app tonight still lets 06:40
+   * happen tomorrow, which is the difference between an exit hatch and sabotage.
+   */
+  exitApp() {
+    return call('exitApp', {}, { closed: false, reason: 'no-native' })
+  },
+
   requestMic() {
     return call('requestMicrophone', {}, { granted: false })
   },

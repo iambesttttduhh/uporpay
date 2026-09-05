@@ -20,7 +20,8 @@ export function render(state) {
 }
 
 function gate(state) {
-  const defaultPin = String(state.settings.adminPin) === '0000'
+  const s = state.settings
+  const defaultPin = String(s.adminPin) === '0000'
   return `
   <div class="card" style="margin-top:6vh">
     <div class="center">
@@ -36,6 +37,7 @@ function gate(state) {
         <button class="btn primary block lg" type="submit" style="margin-top:12px">Unlock lease</button>
       </form>
       ${defaultPin ? `<div class="tiny" style="margin-top:12px;color:var(--warn)">This build still ships the factory PIN: <b class="mono">0000</b>. Change it once you're in.</div>` : ''}
+      ${s.adminExitOnUnlock ? `<div class="tiny" style="margin-top:10px;color:var(--dim)">This PIN is also the <b>exit key</b>: pressing Enter unlocks the lease <b>and closes the app</b> — an admin exit, journaled, no strike. <a data-exit-off style="color:var(--accent);cursor:pointer">Turn that off</a> if you want the lease alone.</div>` : ''}
       <div class="tiny muted" style="margin-top:10px">3 wrong attempts locks the console for a minute.</div>
     </div>
   </div>
@@ -85,7 +87,9 @@ function console_(state) {
     ${row('adminAutoPass', 'Auto-pass captures', 'Any frame is accepted. The checks still run and their reasons are still recorded, marked auto-passed, so you can see what you skipped.')}
     ${row('adminInstantSpacing', 'Ignore line gaps', 'Say all three lines back-to-back instead of a minute apart.')}
     ${row('adminQuietRing', 'Silent ring', 'Full takeover UI, no siren, no vibration.')}
-    <div class="btn-grid one" style="margin-top:12px">
+    ${row('adminExitOnUnlock', 'Key exits the app', 'On: the admin PIN is also an <b>exit key</b> — Enter closes the app after disarming anything live. Logged as an admin exit; alarms you set stay scheduled.')}
+    <div class="btn-grid" style="margin-top:12px">
+      <button class="btn" data-exit-app>🚪 Exit app now</button>
       <button class="btn" data-lease="60">+1 h lease</button>
       <button class="btn" data-lease="forever">${s.adminLeaseMinutes === 0 ? 'Expiry re-armed off — click to require a PIN again' : 'Never expire (until I sign out)'}</button>
     </div>
@@ -189,6 +193,23 @@ export async function mount(root, state) {
       const ok = await engine.unlockAdmin(pin)
       if (ok) {
         attempts = 0
+        if (engine.settings.adminExitOnUnlock) {
+          toast('Admin key accepted — exiting.', 'warn', 4000)
+          const r = await engine.adminExit({ reason: 'admin key at the gate' })
+          if (!r.native) {
+            // A web page cannot close the tab that owns it. Doing nothing silently
+            // would read as a broken button, so: disarm, drop the takeover, and say
+            // plainly that only the APK can actually leave.
+            try {
+              window.close()
+            } catch {
+              /* ignored: browsers refuse this */
+            }
+            toast('Browser build: the app is unarmed, but only the APK can close itself.', 'bad', 6000)
+            engine._emit()
+          }
+          return
+        }
         toast('Admin lease active. The app will not lock you out.', 'good')
         engine._emit()
       } else {
@@ -207,6 +228,23 @@ export async function mount(root, state) {
   }
 
   root.addEventListener('click', async (e) => {
+    if (e.target.closest('[data-exit-off]')) {
+      await engine.setSettings({ adminExitOnUnlock: false })
+      toast('Exit key off — the PIN unlocks the lease only.', '')
+      engine._emit()
+      return
+    }
+    if (e.target.closest('[data-exit-app]')) {
+      const yes = await confirmSheet({
+        title: 'Close the app?',
+        body: 'Anything live is disarmed as an <b>admin exit</b> — no strike, no win, and it is journaled. Alarms you set stay scheduled, so tomorrow still rings.',
+        confirmLabel: 'Exit now',
+      })
+      if (!yes) return
+      const r = await engine.adminExit({ reason: 'admin console' })
+      if (!r.native) toast('Browser build: unarmed, but only the APK can close itself.', 'bad', 5000)
+      return
+    }
     const sw = e.target.closest('[data-admin]')
     if (sw) {
       const key = sw.dataset.admin

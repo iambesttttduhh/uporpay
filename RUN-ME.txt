@@ -44,8 +44,13 @@ Then open  http://localhost:5173
 
 FIRST THINGS TO CLICK
 
-    1. Admin tab (bottom nav)  ->  PIN: 0000
+    1. Admin tab (bottom nav)  ->  PIN: 0000, then Enter
        God mode is on: no lockouts while you test. Every override is journaled.
+       Enter ALSO exits the app (the exit key): anything live is disarmed, the
+       ring service + leash + lock-task are released, scheduled alarms are left
+       alone, and the exit is logged as "admin exit" with no strike and no win.
+       Admin -> "Key exits the app" turns that off; the console also has an
+       "Exit app now" button for when you are already inside.
     2. Home -> "Ring right now"          the takeover screen. one button. no snooze.
     3. "I'M AWAKE" -> Stay inside        hold the mic button and speak the line.
        (In Admin, switch on "Auto-pass" and "Ignore line gaps" to clear a whole

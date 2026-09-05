@@ -37,6 +37,7 @@ before(async () => {
     mission: await import('../views/mission.js'),
     lock: await import('../views/lock.js'),
     journal: await import('../views/journal.js'),
+    admin: await import('../views/admin.js'),
     settings: await import('../views/settings.js'),
   }
   await engine.setSettings({ demoTiming: true, testMode: true, soundOn: false, vibrateOn: false })
@@ -611,5 +612,54 @@ test('wiping the data does not wipe the proof that you wiped it', async () => {
   assert.match(views.journal.render(engine.snapshot()), /wiped/i)
 
   await engine.setSettings(keep)
+  await idle()
+})
+
+test('wiping the data does not wipe the proof that you wiped it', async () => {
+  await idle()
+  const keep = { ...engine.settings }
+  await engine.upsertAlarm({ time: '06:00', label: 'Wipe me', days: [1], missionMode: 'inside', enabled: true })
+  await engine.adjustStrikes(3)
+  assert.ok(engine.alarms.length >= 1, 'there is something to lose')
+  assert.ok(logic.strikesFromEvents(engine.events) >= 1, 'and there is a ladder to lose')
+
+  await engine.resetAll()
+  await settle()
+  assert.equal(engine.alarms.length, 0)
+  assert.equal(logic.strikesFromEvents(engine.events), 0, 'the ladder really is gone')
+  const reset = engine.events.filter((e) => e.type === 'reset').pop()
+  assert.ok(reset, 'the settings sheet promises the wipe is kept on file')
+  const db = await import('../src/db.js')
+  const stored = await db.getAll('events')
+  assert.ok(stored.some((e) => e.type === 'reset'), 'it survived into storage, not just memory')
+  assert.match(views.journal.render(engine.snapshot()), /wiped/i)
+
+  await engine.setSettings(keep)
+  await idle()
+})
+
+test('the admin key can close the app without faking a win or a strike', async () => {
+  await idle()
+  await engine.forceFire({ minutesOut: 0, label: 'Exit key', missionMode: 'inside' })
+  await settle()
+  await engine.acceptMission('inside')
+  const strikes = logic.strikesFromEvents(engine.events)
+  assert.ok(engine.episode, 'there is something live to disarm')
+
+  const r = await engine.adminExit({ reason: 'test' })
+  assert.equal(r.ok, true)
+  assert.equal(r.aborted, true, 'the live episode was disarmed by the key')
+  assert.equal(engine.episode, null)
+  assert.equal(logic.strikesFromEvents(engine.events), strikes, 'an admin exit is not a strike')
+  assert.equal(engine.lastOutcome?.kind, 'aborted', 'nor a win: the streak must not grow')
+  const ev = engine.events.filter((e) => e.type === 'admin_exit').pop()
+  assert.ok(ev, 'the exit is on the record')
+  assert.equal(ev.via, 'browser', 'and it says the browser could not actually close itself')
+
+  // the alarm that was ringing is untouched — exiting is not cancelling
+  assert.ok(engine.alarms.length >= 1)
+  assert.equal(engine.settings.adminExitOnUnlock, true, 'ships with the key wired to exit')
+  const gate = views.admin.render(engine.snapshot())
+  assert.match(gate, /exit key/i, 'the gate says what Enter will do')
   await idle()
 })

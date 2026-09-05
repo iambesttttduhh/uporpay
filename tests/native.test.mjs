@@ -264,3 +264,25 @@ test('a denied microphone or a missing recogniser is data, never a crash', async
   // …and the bridge really has no way to take a picture
   assert.equal(native.native.capturePhoto, undefined)
 })
+
+test('the admin exit key has a real Android side and does not sabotage the alarm', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const java = await readFile(
+    new URL('../android/app/src/main/java/com/uporpay/wakeorlock/WakeOrLockPlugin.java', import.meta.url),
+    'utf8'
+  )
+  assert.match(java, /@PluginMethod\s+public void exitApp\(PluginCall call\)/, 'the bridge method must exist')
+  const body = /\public void exitApp\(PluginCall call\) \{([\s\S]*?)\n    \}/.exec(java)
+  assert.ok(body, 'could not read the exitApp body')
+  const b = body[1]
+  assert.match(b, /ACTION_LEASH_STOP/, 'the leash loop has to stop or it drags the lock screen back after the close')
+  assert.match(b, /ACTION_STOP/, 'and the ring service has to stop, or "exit" leaves a siren running')
+  assert.match(b, /LockGuard\.release/, 'the lock-task confinement is released before leaving')
+  assert.match(b, /finishAndRemoveTask/, 'the task actually goes away')
+  assert.doesNotMatch(b, /cancelAll|AlarmScheduler\.cancel/, 'an exit hatch must not delete scheduled alarms')
+
+  const js = await readFile(new URL('../src/native.js', import.meta.url), 'utf8')
+  assert.match(js, /call\('exitApp'/, 'the web layer calls it by the same name')
+  const engine = await readFile(new URL('../src/engine.js', import.meta.url), 'utf8')
+  assert.match(engine, /type: 'admin_exit'/, 'and the exit is journaled, not silently allowed')
+})
