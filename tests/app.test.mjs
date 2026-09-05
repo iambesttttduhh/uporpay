@@ -663,3 +663,39 @@ test('the admin key can close the app without faking a win or a strike', async (
   assert.match(gate, /exit key/i, 'the gate says what Enter will do')
   await idle()
 })
+
+test('the admin key is reachable from the lockout screen, PIN-gated', async () => {
+  await idle()
+  await engine.forceFire({ minutesOut: 0, label: 'Key on the lock', missionMode: 'inside' })
+  await settle()
+  await engine.acceptMission('inside')
+  engine.episode.missionDeadlineAt = Date.now() - 1
+  await settle()
+  assert.equal(engine.episode.phase, 'locked', 'need a real lockout to test the door')
+  const before = { ...engine.settings }
+  await engine.setSettings({ adminExitOnUnlock: true, adminUnlockedAt: null })
+
+  const open = views.lock.render(engine.snapshot())
+  assert.match(open, /data-exit-key/, 'the key is offered while locked')
+  assert.match(open, /Admin key/)
+
+  await engine.setSettings({ adminExitOnUnlock: false })
+  assert.doesNotMatch(views.lock.render(engine.snapshot()), /data-exit-key/, 'and it is gone when switched off')
+  await engine.setSettings({ adminExitOnUnlock: true })
+
+  // the wrong PIN must not end the lockout
+  const strikes = logic.strikesFromEvents(engine.events)
+  assert.equal(await engine.unlockAdmin('1234'), false)
+  assert.equal(engine.episode?.phase, 'locked', 'a wrong key changes nothing')
+
+  // the right one does: lease granted, lockout disarmed, exit journaled
+  assert.ok(await engine.unlockAdmin(before.adminPin ?? '0000'))
+  const r = await engine.adminExit({ reason: 'test' })
+  assert.equal(r.ok, true)
+  assert.equal(r.aborted, true, 'the lockout it was sitting in is dropped')
+  assert.equal(engine.episode, null)
+  assert.equal(logic.strikesFromEvents(engine.events), strikes, 'the key never touches the ladder')
+  assert.ok(engine.events.some((e) => e.type === 'admin_exit' && /lockout screen|test/.test(String(e.reason))))
+  await engine.setSettings({ adminUnlockedAt: null })
+  await idle()
+})

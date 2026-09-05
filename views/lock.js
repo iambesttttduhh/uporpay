@@ -73,6 +73,15 @@ export function render(state) {
           ? `<button class="btn block" data-admin-exit style="margin-top:9px;border-color:rgba(255,159,10,.5);background:rgba(255,159,10,.14);color:var(--warn)">🔓 Admin override — end this lockout${ep.adminPreview ? ' (preview)' : ''}</button>`
           : ''
       }
+      ${
+        // The admin key is offered here too, because a lockout is the only moment
+        // you actually want out. It asks for the current admin PIN — the same value
+        // the console uses — so changing it in Admin changes this door as well, and
+        // using it is journaled as an admin exit rather than a win.
+        s.adminExitOnUnlock && !logic.adminActive(s)
+          ? `<button class="btn sm block" data-exit-key style="margin-top:9px;background:transparent;border-color:rgba(255,255,255,.14);color:var(--dim)">🗝 Admin key</button>`
+          : ''
+      }
       <div class="tiny muted center" style="margin-top:8px">Voice calls still connect. That is the only thing this screen lets through.</div>
       ${
         s.panicReleaseEnabled
@@ -95,6 +104,45 @@ export function mount(root, state) {
     )
   })
   const ep = state.episode
+  // The key is a two-tap thing: reveal a PIN box, then check it. Not a sheet — a
+  // sheet over a takeover screen fights the popstate guard we install below.
+  root.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-exit-key]')
+    if (!btn || btn.dataset.asking) return
+    btn.dataset.asking = '1'
+    btn.outerHTML = `<div style="display:flex;gap:8px;margin-top:9px">
+      <input id="exit-pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="admin PIN"
+             style="flex:1;font-family:var(--mono);font-size:16px;text-align:center;letter-spacing:.3em;padding:11px" />
+      <button class="btn sm" data-exit-go>Enter</button>
+    </div>`
+    root.querySelector('#exit-pin')?.focus()
+  })
+  root.addEventListener('click', async (e) => {
+    if (!e.target.closest('[data-exit-go]')) return
+    const input = root.querySelector('#exit-pin')
+    const pin = String(input?.value ?? '').trim()
+    const ok = await engine.unlockAdmin(pin)
+    if (!ok) {
+      toast('That is not the key.', 'bad')
+      if (input) {
+        input.value = ''
+        input.focus()
+      }
+      return
+    }
+    toast('Admin key accepted — exiting.', 'warn', 3000)
+    const r = await engine.adminExit({ reason: 'admin key on the lockout screen' })
+    if (!r.native) {
+      toast('Browser build: the lockout is over, but a page cannot close its own tab.', 'bad', 6000)
+    }
+  })
+  root.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter' && e.target?.id === 'exit-pin') {
+      e.preventDefault()
+      e.stopPropagation()
+      root.querySelector('[data-exit-go]')?.click()
+    }
+  }, true)
   root.querySelector('[data-admin-exit]')?.addEventListener('click', async () => {
     if (ep?.adminPreview) await engine.clearLockPreview()
     else await engine.adminAbort()

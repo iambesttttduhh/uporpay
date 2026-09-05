@@ -176,6 +176,13 @@ those words. Switch it off in the console, or from the link under the PIN box, i
 lease alone. Anything live is dropped the same way `adminAbort` does it, so `Settings → Panic
 release` is no longer the only way out of a lock you did not mean to start.
 
+And the key is on the **lockout screen itself** (🗝 Admin key → type the PIN → Enter), because a
+lockout is the only moment you want out. A wrong PIN does literally nothing; the right one ends
+the lockout, closes the app and writes the exit to the journal. Say that plainly: while the
+factory PIN is still `0000`, "you cannot escape this alarm" is only as true as your PIN. Change it
+in the console the first time you open the app, or switch *Key exits the app* off and keep *Panic
+release* as the only door.
+
 | Switch | Effect |
 | --- | --- |
 | **No lockouts** (default on) | A blown mission closes as `bypassed` — ring stops, no lock screen, **no strike**. Enforced in `engine._fail()` via `logic.shouldLockOut()` |

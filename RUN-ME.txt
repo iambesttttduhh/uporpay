@@ -59,6 +59,10 @@ FIRST THINGS TO CLICK
     4. Admin -> "Blow the deadline now"  you get the lock screen. flip
        "No lockouts" OFF and repeat to see a real one.
     5. Admin -> "Preview lock 30 s"      sit in the lockout with no risk.
+       The lock screen has a "Admin key" button: type 0000 + Enter and the
+       lockout ends and the app closes (journaled, no strike). Wrong PIN does
+       nothing. Change the PIN before you trust this with a real morning, or
+       switch "Key exits the app" off in Admin.
     6. Home -> "90-second trial"         the whole loop, hands-free.
 
     Camera and mic need a secure context. On http://localhost they work with no
