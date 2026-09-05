@@ -116,6 +116,7 @@ export const DEFAULT_SETTINGS = {
   // After a lockout expires, the same alarm is re-armed for the next morning —
   // the debt does not get written off because you served the time.
   reArmAfterLockout: true,
+  chargeEscapes: true,       // leaving the lockout costs time (browser + APK)
   escapePenaltyMinutes: 15,  // each detected unpin/force-stop attempt adds this
   escapePenaltyCapMinutes: 240,
   escalationNagAfterRing: true, // after ringMinutes, nag in bursts until deadline

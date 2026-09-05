@@ -117,6 +117,48 @@ test('every screen renders without throwing, empty and loaded', () => {
   assert.match(views.mission.render({ ...state, episode: null }), /No mission running/)
 })
 
+test('the service worker precaches every module the app imports', async () => {
+  // A missing entry here means the first alarm of a bad-wifi morning fails to
+  // load a screen — the one failure mode a PWA alarm clock cannot have.
+  const { readFile, readdir } = await import('node:fs/promises')
+  const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8')
+  const listed = new Set([...sw.matchAll(/'\/(src|views)\/([\w.-]+\.js)'/g)].map((m) => `${m[1]}/${m[2]}`))
+  const real = []
+  for (const dir of ['src', 'views']) {
+    for (const f of await readdir(new URL(`../${dir}`, import.meta.url))) {
+      if (f.endsWith('.js')) real.push(`${dir}/${f}`)
+    }
+  }
+  for (const mod of real) assert.ok(listed.has(mod), `sw.js does not precache /${mod}`)
+})
+
+test('every view returns balanced markup', () => {
+  // A stray </div> inside a takeover screen is the kind of bug that shows up as
+  // "the app looks broken" three months later, so check the shape, not just that
+  // render() did not throw.
+  const VOID = new Set(['br', 'hr', 'img', 'input', 'meta', 'link', 'source', 'path', 'rect', 'circle', 'use'])
+  const check = (name, html) => {
+    const stack = []
+    for (const m of html.matchAll(/<\/?(\w+)[^>]*?(\/)?>/g)) {
+      const [, tag, selfClose] = m
+      const t = tag.toLowerCase()
+      if (VOID.has(t) || selfClose === '/') continue
+      if (m[0][1] === '/') {
+        const open = stack.pop()
+        assert.equal(open, t, `${name}: </${t}> closes <${open}>`)
+      } else {
+        stack.push(t)
+      }
+    }
+    assert.deepEqual(stack, [], `${name}: unclosed ${stack.join(', ')}`)
+  }
+  const state = engine.snapshot()
+  for (const [name, view] of Object.entries(views)) check(name, view.render(state))
+  check('ring', views.mission.renderRing({ ...state, episode: fakeEpisode() }))
+  check('ring (fixed mission)', views.mission.renderRing({ ...state, episode: fakeEpisode({ mode: 'inside' }) }))
+  check('chooser', views.mission.render({ ...state, episode: fakeEpisode({ phase: 'mission' }) }))
+})
+
 test('the ring screen offers exactly one way out, and it is not a dismiss', () => {
   const state = engine.snapshot()
   // A fixed mission: one button, and it starts the mission.
@@ -267,6 +309,31 @@ test('when the lock timer runs out you are let go and the record shows it', asyn
   assert.equal(engine.episode, null)
   const types = engine.events.slice(-2).map((e) => e.type)
   assert.ok(types.includes('released'), `expected a release event, got ${types.join(',')}`)
+})
+
+test('leaving the lock screen is billed, and the ledger survives a reload', async () => {
+  await idle()
+  await engine.setSettings({ chargeEscapes: true, escapePenaltyMinutes: 15, panicReleaseEnabled: false })
+  await engine.recordManualLock(30)
+  const ep = engine.episode
+  assert.equal(ep.phase, 'locked')
+  const before = ep.lockUntil
+  const r = await engine.noteEscape('test: hid the tab')
+  assert.equal(r.ok, true)
+  assert.equal(r.penaltyMinutes, 15, 'each attempt is the configured price')
+  assert.equal(ep.lockUntil, before + 15 * 60_000)
+  assert.equal(ep.escapeCount, 1)
+  assert.ok(engine.events.some((e) => e.type === 'escape_attempt'), 'the attempt must be in the journal')
+  // 10 s debounce: a blur storm must not spiral into a 40-hour lockout.
+  assert.equal((await engine.noteEscape('again')).reason, 'debounced')
+  assert.equal(ep.lockUntil, before + 15 * 60_000)
+  // and the added time is persisted, so reloading does not "un-bill" it
+  engine._resumeEpisode()
+  assert.equal(engine.episode.lockUntil, before + 15 * 60_000)
+  assert.equal(engine.episode.escapeCount, 1)
+  await engine.setSettings({ escapePenaltyMinutes: 15 })
+  engine.episode.lockUntil = Date.now() - 1
+  await settle()
 })
 
 test('panic release is off by default and costs a strike when enabled', async () => {

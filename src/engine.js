@@ -73,6 +73,15 @@ class Engine {
       if (document.visibilityState === 'visible') this.resume()
     })
     window.addEventListener('focus', () => this.resume())
+    // In the browser build, leaving the lockout is billed the same way the APK
+    // bills an unpin. A web page genuinely cannot stop you from closing a tab —
+    // what it can do is make sure that closing it bought you nothing, and that
+    // the attempt is in the journal. Only while locked: while ringing, a phone
+    // call or a notification steals focus and that is not your fault.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') void this.noteEscape('hid the tab during a lockout')
+    })
+    window.addEventListener('blur', () => void this.noteEscape('left the window during a lockout'))
     // First real gesture unlocks audio; needed because we may have to ring loud.
     const arm = () => alarmSound.arm()
     window.addEventListener('pointerdown', arm, { once: true })
@@ -1057,6 +1066,41 @@ class Engine {
       await this.resetStrikes('admin console')
     }
     this._emit()
+  }
+
+  /**
+   * Bill an escape attempt on the lock screen. The native layer keeps its own
+   * ledger (LockGuard, in prefs, because the WebView may be gone) and the JS side
+   * mirrors it, so this only adds time when there is no native service doing it.
+   */
+  async noteEscape(reason = 'left the lock screen') {
+    const ep = this.episode
+    if (!ep || ep.phase !== PHASE.LOCKED || ep.adminPreview) return { ok: false, reason: 'not-locked' }
+    const now = Date.now()
+    if (now - (ep.lastEscapeAt ?? 0) < 10_000) return { ok: false, reason: 'debounced' }
+    ep.lastEscapeAt = now
+    ep.escapeCount = (ep.escapeCount ?? 0) + 1
+    const penalty = logic.escapePenaltyMs(this.settings)
+    const budget = (this.settings.escapePenaltyCapMinutes ?? 240) * 60_000
+    const already = ep.escapePenaltyMs ?? 0
+    const chargeable =
+      this.settings.chargeEscapes && !native.available && penalty > 0 && already < budget
+        ? Math.min(penalty, budget - already)
+        : 0
+    if (chargeable) {
+      ep.lockUntil += chargeable
+      ep.escapePenaltyMs = already + chargeable
+    }
+    await this._saveEpisode()
+    await this._logEvent({
+      type: 'escape_attempt',
+      episodeId: ACTIVE_EPISODE,
+      reason,
+      count: ep.escapeCount,
+      penaltyMinutes: Math.round(chargeable / 60_000),
+    })
+    this._emit()
+    return { ok: true, penaltyMinutes: Math.round(chargeable / 60_000), count: ep.escapeCount }
   }
 
   async resetStrikes(reason = 'admin console') {

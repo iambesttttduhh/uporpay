@@ -8,6 +8,7 @@ const MODULES = [
   '/src/db.js',
   '/src/audio.js',
   '/src/camera.js',
+  '/src/speech.js',
   '/src/verify.js',
   '/src/ui.js',
   '/src/native.js',

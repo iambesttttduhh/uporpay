@@ -36,8 +36,10 @@ export function render(state) {
         <div class="tiny" style="font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--hot-2);margin-bottom:8px">Why</div>
         <div class="small" style="line-height:1.55">${esc(
           ep.acceptedAt == null
-            ? `The alarm rang for ${logic.effectiveMinutes(s.ringMinutes, s).toFixed(0)} minutes and you never tapped "I'm awake". The mission window then expired.`
-            : `You accepted a ${ep.mode} mission and did not complete it before the ${logic.effectiveMinutes(s.missionWindowMinutes, s).toFixed(0)}-minute deadline. ${ep.captures.length} of ${logic.missionSteps(ep.mode, s).length} proofs submitted.`
+            ? `The alarm rang for ${esc(logic.formatDuration(logic.ringMs(s)))} and you never tapped "I'm awake". The mission window then expired.`
+            : `You accepted a ${ep.mode} mission and did not finish it before the ${esc(
+                logic.formatDuration(logic.missionWindowMs(s))
+              )} deadline. ${ep.captures.length} of ${logic.missionSteps(ep.mode, s).length} proofs submitted — the surroundings hold and every line, in order.`
         )}</div>
         <hr class="sep" />
         <div class="tiny muted">Next time you fail: <b style="color:var(--hot-2)">${esc(logic.lockLabel(ep.strike + 1, s))}</b>. Succeed once and the ladder resets to ${esc(logic.lockLabel(1, s))}.</div>
@@ -58,7 +60,7 @@ export function render(state) {
             ? native.hardLock
               ? 'Device owner: the system confines this task, there is no Unpin button, and uninstall / safe boot / factory reset / adb debugging / changing the clock are blocked while the lockout runs. The power button is Android\u2019s, not ours — but a reboot comes back here with the same time left.'
               : `Pinned with screen pinning, so Android shows an Unpin button. Using it is not an exit: each attempt adds ${s.escapePenaltyMinutes ?? 15} min (capped at ${Math.round((s.escapePenaltyCapMinutes ?? 240) / 60)} h) and the leash drags this screen back to the front within seconds. Rebooting does it too — BootReceiver re-applies what is left.`
-            : 'Browser build: this covers the page and nothing more is possible without the APK (docs/APK.md).'
+            : 'Browser build: nothing here can stop you closing a tab, so the app bills you for trying — hiding the window while you are locked out adds time and lands in the journal.'
         }</div>
         ${native.available && !native.hardLock ? '<button class="btn sm block" data-overlay style="margin-top:9px">Grant "display over other apps" — makes the lock unignorable</button>' : ''}
       </div>
