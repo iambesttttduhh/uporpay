@@ -1,0 +1,3 @@
+-keepattributes *Annotation*
+-keep class com.wakelock.data.db.** { *; }
+-dontwarn org.jetbrains.annotations.**

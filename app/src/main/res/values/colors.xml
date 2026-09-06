@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="wl_ink">#0B0D12</color>
+    <color name="wl_surface">#14171F</color>
+    <color name="wl_amber">#FFB020</color>
+    <color name="wl_orange">#FF7A18</color>
+    <color name="wl_red">#FF3B30</color>
+    <color name="wl_light">#F5F6F8</color>
+</resources>

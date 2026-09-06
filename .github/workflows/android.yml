@@ -1,0 +1,78 @@
+name: Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [arena/01a07297-uporpay]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: arena/01a07297-uporpay
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate gradle wrapper if missing
+        run: |
+          if [ ! -f gradlew ]; then gradle wrapper --gradle-version 8.11.1; fi
+
+      - name: Unit tests
+        id: tests
+        continue-on-error: true
+        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace 2>&1 | tee ci-tests.log
+
+      - name: Build debug APK
+        id: debug
+        continue-on-error: true
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee ci-debug.log
+
+      - name: Build release APK
+        id: release
+        continue-on-error: true
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee ci-release.log
+
+      - name: Collect results
+        if: always()
+        run: |
+          mkdir -p ci
+          tail -c 60000 ci-tests.log   > ci/tests.log   2>/dev/null || true
+          tail -c 60000 ci-debug.log   > ci/debug.log   2>/dev/null || true
+          tail -c 60000 ci-release.log > ci/release.log 2>/dev/null || true
+          { echo "tests=${{ steps.tests.outcome }}";
+            echo "debug=${{ steps.debug.outcome }}";
+            echo "release=${{ steps.release.outcome }}";
+            echo "--- apks ---";
+            find app/build/outputs -name '*.apk' -printf '%p %s bytes\n' 2>/dev/null || true;
+          } > ci/status.txt
+          # copy test xml failures for detail
+          find app/build/test-results -name '*.xml' -exec sh -c 'grep -l "<failure\|<error" "$1" >/dev/null 2>&1 && cat "$1"' _ {} \; \
+            | tail -c 30000 > ci/test-failures.xml 2>/dev/null || true
+
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wakelock-apks
+          path: app/build/outputs/**/*.apk
+          if-no-files-found: warn
+
+      - name: Commit CI results
+        if: always()
+        run: |
+          git config user.name "wakelock-ci"
+          git config user.email "ci@wakelock.local"
+          mkdir -p dist
+          find app/build/outputs -name '*.apk' -exec cp {} dist/ \; 2>/dev/null || true
+          git add -f ci/ dist/ 2>/dev/null || true
+          git commit -m "ci: build results [skip ci]" || echo "nothing to commit"
+          git pull --rebase origin arena/01a07297-uporpay || true
+          git push origin HEAD:arena/01a07297-uporpay || true

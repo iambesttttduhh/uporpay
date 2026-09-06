@@ -1,0 +1,2222 @@
+[
+{
+"text": "Today starts now.",
+"category": "SHORT"
+},
+{
+"text": "I am awake.",
+"category": "SHORT"
+},
+{
+"text": "I am getting up.",
+"category": "SHORT"
+},
+{
+"text": "Time to move.",
+"category": "SHORT"
+},
+{
+"text": "No more sleep.",
+"category": "SHORT"
+},
+{
+"text": "I am up.",
+"category": "SHORT"
+},
+{
+"text": "Feet on the floor.",
+"category": "SHORT"
+},
+{
+"text": "This is my morning.",
+"category": "SHORT"
+},
+{
+"text": "Start now.",
+"category": "SHORT"
+},
+{
+"text": "Move now.",
+"category": "SHORT"
+},
+{
+"text": "Wake up and go.",
+"category": "SHORT"
+},
+{
+"text": "The day begins.",
+"category": "SHORT"
+},
+{
+"text": "I choose to rise.",
+"category": "SHORT"
+},
+{
+"text": "Up and moving.",
+"category": "SHORT"
+},
+{
+"text": "Begin today.",
+"category": "SHORT"
+},
+{
+"text": "No delay.",
+"category": "SHORT"
+},
+{
+"text": "Right now.",
+"category": "SHORT"
+},
+{
+"text": "I am standing up.",
+"category": "SHORT"
+},
+{
+"text": "Morning is here.",
+"category": "SHORT"
+},
+{
+"text": "Let's begin.",
+"category": "SHORT"
+},
+{
+"text": "I do what I said I would do.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Discipline beats motivation every time.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I keep the promises I make to myself.",
+"category": "DISCIPLINE"
+},
+{
+"text": "My word to myself is final.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I follow through without negotiation.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I decided last night and I honor it.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Excuses do not run my morning.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I am stronger than my comfort.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I chose this and I accept it.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Comfort does not decide my day.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I act even when I don't feel like it.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Consistency is my advantage.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I show up regardless of mood.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I do the hard thing first.",
+"category": "DISCIPLINE"
+},
+{
+"text": "My habits define my future.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I am building self trust right now.",
+"category": "DISCIPLINE"
+},
+{
+"text": "No negotiation with the snooze button.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I honor the plan I made.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Discipline is freedom for me.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I do not bargain with myself.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I finish what I begin.",
+"category": "DISCIPLINE"
+},
+{
+"text": "My standards do not move.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I earn my day.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I am accountable to myself.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Small promises kept build a strong life.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I respect my own decisions.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Today I prove I am reliable.",
+"category": "DISCIPLINE"
+},
+{
+"text": "The plan does not change.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I lead myself well.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I am the person who gets up.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I am awake and ready for the day.",
+"category": "MORNING"
+},
+{
+"text": "The morning belongs to me.",
+"category": "MORNING"
+},
+{
+"text": "I welcome this new day.",
+"category": "MORNING"
+},
+{
+"text": "A fresh day is starting now.",
+"category": "MORNING"
+},
+{
+"text": "I am grateful for this morning.",
+"category": "MORNING"
+},
+{
+"text": "Morning light means a new chance.",
+"category": "MORNING"
+},
+{
+"text": "I begin my day with intention.",
+"category": "MORNING"
+},
+{
+"text": "This morning is a clean page.",
+"category": "MORNING"
+},
+{
+"text": "I greet the day with energy.",
+"category": "MORNING"
+},
+{
+"text": "The sun is up and so am I.",
+"category": "MORNING"
+},
+{
+"text": "I open my eyes to a new start.",
+"category": "MORNING"
+},
+{
+"text": "Every morning is another opportunity.",
+"category": "MORNING"
+},
+{
+"text": "I start my day on purpose.",
+"category": "MORNING"
+},
+{
+"text": "This is the best part of my day.",
+"category": "MORNING"
+},
+{
+"text": "My morning sets my whole day.",
+"category": "MORNING"
+},
+{
+"text": "I rise with a clear mind.",
+"category": "MORNING"
+},
+{
+"text": "Today is unwritten and mine.",
+"category": "MORNING"
+},
+{
+"text": "I meet this morning with focus.",
+"category": "MORNING"
+},
+{
+"text": "A calm morning makes a strong day.",
+"category": "MORNING"
+},
+{
+"text": "I choose how this morning goes.",
+"category": "MORNING"
+},
+{
+"text": "I am ready to do focused work.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "My most important task starts now.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I protect my time today.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Progress matters more than perfection.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I will finish what matters most.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Deep work begins this morning.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I choose focus over distraction.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "One task at a time, done well.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I make real progress today.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I am clearing my most important work first.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "My attention is valuable and I direct it.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I plan my day before it plans me.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Momentum starts with the first action.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I turn intention into action.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Today I move the needle.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I do the work that actually counts.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Distractions can wait until later.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I am building something today.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "My effort compounds over time.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Action beats planning right now.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "My body is ready to move.",
+"category": "FITNESS"
+},
+{
+"text": "I train because I care about my health.",
+"category": "FITNESS"
+},
+{
+"text": "Movement is medicine for me.",
+"category": "FITNESS"
+},
+{
+"text": "I am getting stronger every day.",
+"category": "FITNESS"
+},
+{
+"text": "My workout starts now.",
+"category": "FITNESS"
+},
+{
+"text": "I move my body with intention.",
+"category": "FITNESS"
+},
+{
+"text": "Strength is built one morning at a time.",
+"category": "FITNESS"
+},
+{
+"text": "I show up for my training.",
+"category": "FITNESS"
+},
+{
+"text": "My health is worth the effort.",
+"category": "FITNESS"
+},
+{
+"text": "I choose motion over stillness.",
+"category": "FITNESS"
+},
+{
+"text": "Every rep is an investment.",
+"category": "FITNESS"
+},
+{
+"text": "I take care of the body I have.",
+"category": "FITNESS"
+},
+{
+"text": "Energy comes from moving.",
+"category": "FITNESS"
+},
+{
+"text": "I am fit and getting fitter.",
+"category": "FITNESS"
+},
+{
+"text": "Training clears my mind.",
+"category": "FITNESS"
+},
+{
+"text": "I honor my body with movement.",
+"category": "FITNESS"
+},
+{
+"text": "No excuses, just effort.",
+"category": "FITNESS"
+},
+{
+"text": "Sweat now, thank myself later.",
+"category": "FITNESS"
+},
+{
+"text": "My strength starts in the morning.",
+"category": "FITNESS"
+},
+{
+"text": "I am building a resilient body.",
+"category": "FITNESS"
+},
+{
+"text": "I am ready to learn something new.",
+"category": "STUDY"
+},
+{
+"text": "My study session begins now.",
+"category": "STUDY"
+},
+{
+"text": "Knowledge is worth waking up for.",
+"category": "STUDY"
+},
+{
+"text": "I focus on understanding, not memorizing.",
+"category": "STUDY"
+},
+{
+"text": "I invest in my education today.",
+"category": "STUDY"
+},
+{
+"text": "Learning compounds over time.",
+"category": "STUDY"
+},
+{
+"text": "I study with full attention.",
+"category": "STUDY"
+},
+{
+"text": "Every page moves me forward.",
+"category": "STUDY"
+},
+{
+"text": "I am becoming better informed.",
+"category": "STUDY"
+},
+{
+"text": "My future depends on this effort.",
+"category": "STUDY"
+},
+{
+"text": "I choose growth over comfort.",
+"category": "STUDY"
+},
+{
+"text": "Consistent study beats cramming.",
+"category": "STUDY"
+},
+{
+"text": "I am capable of understanding this.",
+"category": "STUDY"
+},
+{
+"text": "I show up for my own learning.",
+"category": "STUDY"
+},
+{
+"text": "Today I get a little smarter.",
+"category": "STUDY"
+},
+{
+"text": "I turn confusion into clarity.",
+"category": "STUDY"
+},
+{
+"text": "Curiosity gets me out of bed.",
+"category": "STUDY"
+},
+{
+"text": "I am building real knowledge.",
+"category": "STUDY"
+},
+{
+"text": "My mind is sharp this morning.",
+"category": "STUDY"
+},
+{
+"text": "Studying now saves stress later.",
+"category": "STUDY"
+},
+{
+"text": "My work matters and it starts now.",
+"category": "WORK"
+},
+{
+"text": "I bring my best to my work today.",
+"category": "WORK"
+},
+{
+"text": "I take ownership of my responsibilities.",
+"category": "WORK"
+},
+{
+"text": "I contribute something real today.",
+"category": "WORK"
+},
+{
+"text": "My career is built on mornings like this.",
+"category": "WORK"
+},
+{
+"text": "I do good work because I choose to.",
+"category": "WORK"
+},
+{
+"text": "I show up prepared and ready.",
+"category": "WORK"
+},
+{
+"text": "Today I add value.",
+"category": "WORK"
+},
+{
+"text": "I handle my responsibilities well.",
+"category": "WORK"
+},
+{
+"text": "Professional excellence starts early.",
+"category": "WORK"
+},
+{
+"text": "I am dependable at work.",
+"category": "WORK"
+},
+{
+"text": "I do my job with care.",
+"category": "WORK"
+},
+{
+"text": "My reputation is built daily.",
+"category": "WORK"
+},
+{
+"text": "I begin work with a clear plan.",
+"category": "WORK"
+},
+{
+"text": "I finish tasks instead of avoiding them.",
+"category": "WORK"
+},
+{
+"text": "I take pride in my work.",
+"category": "WORK"
+},
+{
+"text": "I earn my position every day.",
+"category": "WORK"
+},
+{
+"text": "Today I solve real problems.",
+"category": "WORK"
+},
+{
+"text": "I work with focus and purpose.",
+"category": "WORK"
+},
+{
+"text": "My effort today pays me tomorrow.",
+"category": "WORK"
+},
+{
+"text": "I am capable of handling today.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I trust myself to figure it out.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am stronger than I think.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I believe in my own ability.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I can do difficult things.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am prepared for whatever comes.",
+"category": "CONFIDENCE"
+},
+{
+"text": "My confidence comes from action.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I have overcome harder mornings.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am in control of my choices.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I deserve a strong day.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I speak and act with certainty.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am becoming the person I want to be.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I handle challenges calmly.",
+"category": "CONFIDENCE"
+},
+{
+"text": "My potential is real.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am worthy of my own effort.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I face today without fear.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I have what it takes.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am proud of getting up.",
+"category": "CONFIDENCE"
+},
+{
+"text": "My self respect grows this morning.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I choose courage over hesitation.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am awake and at peace.",
+"category": "CALM"
+},
+{
+"text": "I begin this day calmly.",
+"category": "CALM"
+},
+{
+"text": "My mind is quiet and clear.",
+"category": "CALM"
+},
+{
+"text": "I breathe and I begin.",
+"category": "CALM"
+},
+{
+"text": "There is no rush, only progress.",
+"category": "CALM"
+},
+{
+"text": "I move through today with ease.",
+"category": "CALM"
+},
+{
+"text": "I am steady and grounded.",
+"category": "CALM"
+},
+{
+"text": "Calm energy carries me forward.",
+"category": "CALM"
+},
+{
+"text": "I release the tension of sleep.",
+"category": "CALM"
+},
+{
+"text": "I am present in this moment.",
+"category": "CALM"
+},
+{
+"text": "Peace and purpose can coexist.",
+"category": "CALM"
+},
+{
+"text": "I start slowly and steadily.",
+"category": "CALM"
+},
+{
+"text": "My breathing is deep and easy.",
+"category": "CALM"
+},
+{
+"text": "I am centered this morning.",
+"category": "CALM"
+},
+{
+"text": "Stillness prepares me for action.",
+"category": "CALM"
+},
+{
+"text": "I meet the day gently.",
+"category": "CALM"
+},
+{
+"text": "I am relaxed and awake.",
+"category": "CALM"
+},
+{
+"text": "My thoughts are settling into focus.",
+"category": "CALM"
+},
+{
+"text": "A calm start makes a clear day.",
+"category": "CALM"
+},
+{
+"text": "I choose serenity and action.",
+"category": "CALM"
+},
+{
+"text": "Get out of bed and start.",
+"category": "INTENSE"
+},
+{
+"text": "No more excuses, move now.",
+"category": "INTENSE"
+},
+{
+"text": "Stop lying there and go.",
+"category": "INTENSE"
+},
+{
+"text": "Nobody is coming to save this morning.",
+"category": "INTENSE"
+},
+{
+"text": "Your goals do not wait for comfort.",
+"category": "INTENSE"
+},
+{
+"text": "Move before your mind talks you out of it.",
+"category": "INTENSE"
+},
+{
+"text": "This is the moment that decides your day.",
+"category": "INTENSE"
+},
+{
+"text": "Weakness is optional, get up.",
+"category": "INTENSE"
+},
+{
+"text": "Your future self is watching right now.",
+"category": "INTENSE"
+},
+{
+"text": "Stop negotiating and stand up.",
+"category": "INTENSE"
+},
+{
+"text": "The bed is not where progress happens.",
+"category": "INTENSE"
+},
+{
+"text": "Prove you meant what you said.",
+"category": "INTENSE"
+},
+{
+"text": "Comfort is the enemy this morning.",
+"category": "INTENSE"
+},
+{
+"text": "Get up before the excuses win.",
+"category": "INTENSE"
+},
+{
+"text": "You committed, now deliver.",
+"category": "INTENSE"
+},
+{
+"text": "Nothing changes if you stay down.",
+"category": "INTENSE"
+},
+{
+"text": "Attack this day right now.",
+"category": "INTENSE"
+},
+{
+"text": "Every second in bed is a choice.",
+"category": "INTENSE"
+},
+{
+"text": "Discipline now or regret later.",
+"category": "INTENSE"
+},
+{
+"text": "Stand up and take control.",
+"category": "INTENSE"
+},
+{
+"text": "My bed has officially heard enough of me.",
+"category": "FUNNY"
+},
+{
+"text": "The blanket and I are on a break.",
+"category": "FUNNY"
+},
+{
+"text": "My pillow is not my life coach.",
+"category": "FUNNY"
+},
+{
+"text": "I am legally required to be vertical now.",
+"category": "FUNNY"
+},
+{
+"text": "The bed has served its purpose, goodbye.",
+"category": "FUNNY"
+},
+{
+"text": "My dreams can continue in the shower.",
+"category": "FUNNY"
+},
+{
+"text": "Even my alarm is tired of me.",
+"category": "FUNNY"
+},
+{
+"text": "The mattress is winning and I refuse.",
+"category": "FUNNY"
+},
+{
+"text": "I have been horizontal long enough.",
+"category": "FUNNY"
+},
+{
+"text": "My future self is filing a complaint.",
+"category": "FUNNY"
+},
+{
+"text": "Gravity is strong but I am stronger.",
+"category": "FUNNY"
+},
+{
+"text": "The snooze button and I are no longer friends.",
+"category": "FUNNY"
+},
+{
+"text": "My bed is a trap and I escaped.",
+"category": "FUNNY"
+},
+{
+"text": "Sleeping is a hobby, not a career.",
+"category": "FUNNY"
+},
+{
+"text": "The day started without me, rude.",
+"category": "FUNNY"
+},
+{
+"text": "I am unsubscribing from sleep.",
+"category": "FUNNY"
+},
+{
+"text": "My blanket does not pay rent.",
+"category": "FUNNY"
+},
+{
+"text": "Time to be a functioning person again.",
+"category": "FUNNY"
+},
+{
+"text": "The couch is next, but first I stand.",
+"category": "FUNNY"
+},
+{
+"text": "I am powering on like an old computer.",
+"category": "FUNNY"
+},
+{
+"text": "I am awake and getting out of bed.",
+"category": "WAKEUP"
+},
+{
+"text": "I will not go back to sleep.",
+"category": "WAKEUP"
+},
+{
+"text": "I am responsible for how I spend this morning.",
+"category": "WAKEUP"
+},
+{
+"text": "I am getting up right now.",
+"category": "WAKEUP"
+},
+{
+"text": "Sleep is over and my day begins.",
+"category": "WAKEUP"
+},
+{
+"text": "I am fully awake and alert.",
+"category": "WAKEUP"
+},
+{
+"text": "My eyes are open and so is my day.",
+"category": "WAKEUP"
+},
+{
+"text": "I refuse to return to sleep.",
+"category": "WAKEUP"
+},
+{
+"text": "This is the moment I get up.",
+"category": "WAKEUP"
+},
+{
+"text": "I am leaving the bed behind.",
+"category": "WAKEUP"
+},
+{
+"text": "Waking up is my first win today.",
+"category": "WAKEUP"
+},
+{
+"text": "I am conscious and choosing to move.",
+"category": "WAKEUP"
+},
+{
+"text": "My alarm did its job and so will I.",
+"category": "WAKEUP"
+},
+{
+"text": "I am done sleeping for today.",
+"category": "WAKEUP"
+},
+{
+"text": "The decision is made, I am up.",
+"category": "WAKEUP"
+},
+{
+"text": "I am awake and taking action.",
+"category": "WAKEUP"
+},
+{
+"text": "No more rest, only progress.",
+"category": "WAKEUP"
+},
+{
+"text": "I am starting my day right now.",
+"category": "WAKEUP"
+},
+{
+"text": "I have slept enough and I am rising.",
+"category": "WAKEUP"
+},
+{
+"text": "Being awake is a choice I am making.",
+"category": "WAKEUP"
+},
+{
+"text": "Rise and go.",
+"category": "SHORT"
+},
+{
+"text": "I am vertical.",
+"category": "SHORT"
+},
+{
+"text": "Day one again.",
+"category": "SHORT"
+},
+{
+"text": "Go time.",
+"category": "SHORT"
+},
+{
+"text": "Eyes open, feet down.",
+"category": "SHORT"
+},
+{
+"text": "Now, not later.",
+"category": "SHORT"
+},
+{
+"text": "I am moving already.",
+"category": "SHORT"
+},
+{
+"text": "Off the pillow.",
+"category": "SHORT"
+},
+{
+"text": "Awake and willing.",
+"category": "SHORT"
+},
+{
+"text": "Start the engine.",
+"category": "SHORT"
+},
+{
+"text": "First step taken.",
+"category": "SHORT"
+},
+{
+"text": "I am here.",
+"category": "SHORT"
+},
+{
+"text": "Today counts.",
+"category": "SHORT"
+},
+{
+"text": "Out of bed.",
+"category": "SHORT"
+},
+{
+"text": "Clock wins, I rise.",
+"category": "SHORT"
+},
+{
+"text": "No snooze today.",
+"category": "SHORT"
+},
+{
+"text": "I said now.",
+"category": "SHORT"
+},
+{
+"text": "Standing up now.",
+"category": "SHORT"
+},
+{
+"text": "Morning, let's work.",
+"category": "SHORT"
+},
+{
+"text": "I am switched on.",
+"category": "SHORT"
+},
+{
+"text": "Up before the excuses.",
+"category": "SHORT"
+},
+{
+"text": "This is the moment.",
+"category": "SHORT"
+},
+{
+"text": "One move, then another.",
+"category": "SHORT"
+},
+{
+"text": "I am already up.",
+"category": "SHORT"
+},
+{
+"text": "Choose action.",
+"category": "SHORT"
+},
+{
+"text": "Feet moving.",
+"category": "SHORT"
+},
+{
+"text": "Get going.",
+"category": "SHORT"
+},
+{
+"text": "Day is open.",
+"category": "SHORT"
+},
+{
+"text": "I answer the alarm.",
+"category": "SHORT"
+},
+{
+"text": "Rising now.",
+"category": "SHORT"
+},
+{
+"text": "My past self made this decision for a reason.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I do not renegotiate at five in the morning.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Reliability is a skill and I practice it.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I am loyal to my own commitments.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Effort is the price and I pay it.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I keep going when it stops being fun.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Self control is my quiet superpower.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I choose the harder right over the easier wrong.",
+"category": "DISCIPLINE"
+},
+{
+"text": "My routine protects my goals.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I am disciplined even when nobody watches.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Standards over feelings, always.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I do it because I said I would.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Today I do not let myself down.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Structure makes me free.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I finish the morning I planned.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Willpower grows each time I use it.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I am not ruled by how I feel.",
+"category": "DISCIPLINE"
+},
+{
+"text": "The plan survives contact with the morning.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I own every minute of today.",
+"category": "DISCIPLINE"
+},
+{
+"text": "My discipline is not up for debate.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I choose long term over comfortable.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I am building a reputation with myself.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I do the boring work that wins.",
+"category": "DISCIPLINE"
+},
+{
+"text": "Nothing gets skipped today.",
+"category": "DISCIPLINE"
+},
+{
+"text": "I am consistent above all else.",
+"category": "DISCIPLINE"
+},
+{
+"text": "The quiet of morning is my advantage.",
+"category": "MORNING"
+},
+{
+"text": "I claim these early hours.",
+"category": "MORNING"
+},
+{
+"text": "This morning I choose growth.",
+"category": "MORNING"
+},
+{
+"text": "A good morning is built, not found.",
+"category": "MORNING"
+},
+{
+"text": "I meet the sunrise awake.",
+"category": "MORNING"
+},
+{
+"text": "Early hours belong to the willing.",
+"category": "MORNING"
+},
+{
+"text": "I open the day with purpose.",
+"category": "MORNING"
+},
+{
+"text": "This morning I am fully present.",
+"category": "MORNING"
+},
+{
+"text": "New day, new standard.",
+"category": "MORNING"
+},
+{
+"text": "The world is quiet and I am awake.",
+"category": "MORNING"
+},
+{
+"text": "Morning air clears my head.",
+"category": "MORNING"
+},
+{
+"text": "I begin again, better.",
+"category": "MORNING"
+},
+{
+"text": "Today's first hour is mine.",
+"category": "MORNING"
+},
+{
+"text": "I rise before the noise begins.",
+"category": "MORNING"
+},
+{
+"text": "Dawn is my reset button.",
+"category": "MORNING"
+},
+{
+"text": "I am awake while others sleep.",
+"category": "MORNING"
+},
+{
+"text": "This morning already feels different.",
+"category": "MORNING"
+},
+{
+"text": "I start the day I planned.",
+"category": "MORNING"
+},
+{
+"text": "Fresh start, full effort.",
+"category": "MORNING"
+},
+{
+"text": "Nothing about today is wasted.",
+"category": "MORNING"
+},
+{
+"text": "The morning rewards those who show up.",
+"category": "MORNING"
+},
+{
+"text": "I am here for the whole day.",
+"category": "MORNING"
+},
+{
+"text": "Early is a decision, not a personality.",
+"category": "MORNING"
+},
+{
+"text": "I own the first hour.",
+"category": "MORNING"
+},
+{
+"text": "My morning is my foundation.",
+"category": "MORNING"
+},
+{
+"text": "I start with the task I want to avoid.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Focus is a choice I make now.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I trade scrolling for progress.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "My priorities get my first energy.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Done beats perfect this morning.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I remove friction and begin.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Two hours of focus changes everything.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I close the distractions and start.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "My work gets my best attention.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I make progress before noon.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "One clear task, full attention.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I protect my deep work time.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Today I ship something real.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I build momentum in the first hour.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Small steps taken early add up.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I choose output over busywork.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "My time goes where I decide.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I begin before I feel ready.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Efficiency starts with starting.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Today I finish something meaningful.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I clear the important, not the urgent.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I work with intention, not reaction.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "My schedule reflects my priorities.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "I start strong and stay steady.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "Progress today, not someday.",
+"category": "PRODUCTIVITY"
+},
+{
+"text": "My muscles are ready to work.",
+"category": "FITNESS"
+},
+{
+"text": "I move because I am able to.",
+"category": "FITNESS"
+},
+{
+"text": "Today I get physically stronger.",
+"category": "FITNESS"
+},
+{
+"text": "I earn my energy through movement.",
+"category": "FITNESS"
+},
+{
+"text": "My training is non negotiable.",
+"category": "FITNESS"
+},
+{
+"text": "I choose the workout over the excuse.",
+"category": "FITNESS"
+},
+{
+"text": "Physical effort sharpens my mind.",
+"category": "FITNESS"
+},
+{
+"text": "I am building endurance daily.",
+"category": "FITNESS"
+},
+{
+"text": "My body responds to consistency.",
+"category": "FITNESS"
+},
+{
+"text": "I stretch, I move, I begin.",
+"category": "FITNESS"
+},
+{
+"text": "Fitness is a long game and I am playing.",
+"category": "FITNESS"
+},
+{
+"text": "I respect my body enough to train it.",
+"category": "FITNESS"
+},
+{
+"text": "Movement wakes me completely.",
+"category": "FITNESS"
+},
+{
+"text": "I am capable of more than yesterday.",
+"category": "FITNESS"
+},
+{
+"text": "My legs carry me forward today.",
+"category": "FITNESS"
+},
+{
+"text": "Strong body, clear mind.",
+"category": "FITNESS"
+},
+{
+"text": "I train for the life I want.",
+"category": "FITNESS"
+},
+{
+"text": "Effort now, energy all day.",
+"category": "FITNESS"
+},
+{
+"text": "I choose health this morning.",
+"category": "FITNESS"
+},
+{
+"text": "Every session builds the next one.",
+"category": "FITNESS"
+},
+{
+"text": "I am an athlete of my own life.",
+"category": "FITNESS"
+},
+{
+"text": "Discipline in training, discipline everywhere.",
+"category": "FITNESS"
+},
+{
+"text": "My heart rate is rising and so am I.",
+"category": "FITNESS"
+},
+{
+"text": "I move first, think later.",
+"category": "FITNESS"
+},
+{
+"text": "This body deserves my effort.",
+"category": "FITNESS"
+},
+{
+"text": "My books are waiting and I am ready.",
+"category": "STUDY"
+},
+{
+"text": "I learn best when I start early.",
+"category": "STUDY"
+},
+{
+"text": "Understanding takes time and I give it.",
+"category": "STUDY"
+},
+{
+"text": "I read with full concentration.",
+"category": "STUDY"
+},
+{
+"text": "Today I master something difficult.",
+"category": "STUDY"
+},
+{
+"text": "Education is my long term investment.",
+"category": "STUDY"
+},
+{
+"text": "I sit down and I begin studying.",
+"category": "STUDY"
+},
+{
+"text": "Focused hours beat scattered days.",
+"category": "STUDY"
+},
+{
+"text": "I take notes that actually help me.",
+"category": "STUDY"
+},
+{
+"text": "My exams are won in mornings like this.",
+"category": "STUDY"
+},
+{
+"text": "I break hard topics into small pieces.",
+"category": "STUDY"
+},
+{
+"text": "Repetition builds real understanding.",
+"category": "STUDY"
+},
+{
+"text": "I study before the day gets loud.",
+"category": "STUDY"
+},
+{
+"text": "Learning is worth this early hour.",
+"category": "STUDY"
+},
+{
+"text": "I am patient with difficult material.",
+"category": "STUDY"
+},
+{
+"text": "Today's study session matters.",
+"category": "STUDY"
+},
+{
+"text": "I close the gap in my knowledge.",
+"category": "STUDY"
+},
+{
+"text": "I ask better questions today.",
+"category": "STUDY"
+},
+{
+"text": "My concentration improves with practice.",
+"category": "STUDY"
+},
+{
+"text": "Knowledge earned is knowledge kept.",
+"category": "STUDY"
+},
+{
+"text": "I choose the desk over the bed.",
+"category": "STUDY"
+},
+{
+"text": "I am serious about my learning.",
+"category": "STUDY"
+},
+{
+"text": "Every study hour compounds.",
+"category": "STUDY"
+},
+{
+"text": "I understand more than yesterday.",
+"category": "STUDY"
+},
+{
+"text": "My future depends on today's focus.",
+"category": "STUDY"
+},
+{
+"text": "I begin my work with a clear head.",
+"category": "WORK"
+},
+{
+"text": "My projects move forward today.",
+"category": "WORK"
+},
+{
+"text": "I am reliable and my team knows it.",
+"category": "WORK"
+},
+{
+"text": "I deliver what I promise at work.",
+"category": "WORK"
+},
+{
+"text": "Today I handle the difficult conversation.",
+"category": "WORK"
+},
+{
+"text": "My inbox does not run my morning.",
+"category": "WORK"
+},
+{
+"text": "I do meaningful work, not just busy work.",
+"category": "WORK"
+},
+{
+"text": "I bring energy into every meeting.",
+"category": "WORK"
+},
+{
+"text": "Craftsmanship matters in what I build.",
+"category": "WORK"
+},
+{
+"text": "I solve problems instead of listing them.",
+"category": "WORK"
+},
+{
+"text": "My work reflects my standards.",
+"category": "WORK"
+},
+{
+"text": "I start the day organized.",
+"category": "WORK"
+},
+{
+"text": "I take initiative this morning.",
+"category": "WORK"
+},
+{
+"text": "Today I finish the thing I postponed.",
+"category": "WORK"
+},
+{
+"text": "I am building a career one day at a time.",
+"category": "WORK"
+},
+{
+"text": "Professionalism begins before nine.",
+"category": "WORK"
+},
+{
+"text": "I contribute clearly and calmly.",
+"category": "WORK"
+},
+{
+"text": "My focus makes me effective.",
+"category": "WORK"
+},
+{
+"text": "I earn trust through consistency.",
+"category": "WORK"
+},
+{
+"text": "Today I do work I am proud of.",
+"category": "WORK"
+},
+{
+"text": "I handle pressure with composure.",
+"category": "WORK"
+},
+{
+"text": "I plan, then I execute.",
+"category": "WORK"
+},
+{
+"text": "My effort is visible in the result.",
+"category": "WORK"
+},
+{
+"text": "I add value before I ask for it.",
+"category": "WORK"
+},
+{
+"text": "Work done well is its own reward.",
+"category": "WORK"
+},
+{
+"text": "I am equal to today's challenges.",
+"category": "CONFIDENCE"
+},
+{
+"text": "My abilities are real and growing.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I trust the person I am becoming.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I do not need permission to succeed.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I have survived every hard morning so far.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I carry myself with quiet certainty.",
+"category": "CONFIDENCE"
+},
+{
+"text": "My confidence is built on evidence.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am allowed to take up space.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I back myself completely.",
+"category": "CONFIDENCE"
+},
+{
+"text": "Fear does not decide my actions.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am resourceful under pressure.",
+"category": "CONFIDENCE"
+},
+{
+"text": "My track record speaks for me.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I choose belief over doubt.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am ready for what today brings.",
+"category": "CONFIDENCE"
+},
+{
+"text": "Self doubt is not the boss here.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I stand tall in my own life.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I know what I am capable of.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I decide who I am today.",
+"category": "CONFIDENCE"
+},
+{
+"text": "My mindset is my strongest asset.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am proud of my effort already.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I face difficulty with steady nerves.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am becoming unshakeable.",
+"category": "CONFIDENCE"
+},
+{
+"text": "My value is not up for debate.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I act with conviction.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I am the author of this day.",
+"category": "CONFIDENCE"
+},
+{
+"text": "I wake gently and fully.",
+"category": "CALM"
+},
+{
+"text": "My morning does not need to be rushed.",
+"category": "CALM"
+},
+{
+"text": "I breathe deeply and begin.",
+"category": "CALM"
+},
+{
+"text": "Calm focus is my natural state.",
+"category": "CALM"
+},
+{
+"text": "I let go of yesterday completely.",
+"category": "CALM"
+},
+{
+"text": "Stillness and progress live together.",
+"category": "CALM"
+},
+{
+"text": "My nervous system is settling now.",
+"category": "CALM"
+},
+{
+"text": "I move at a sustainable pace.",
+"category": "CALM"
+},
+{
+"text": "There is enough time for what matters.",
+"category": "CALM"
+},
+{
+"text": "I greet the day without anxiety.",
+"category": "CALM"
+},
+{
+"text": "My thoughts are clear and unhurried.",
+"category": "CALM"
+},
+{
+"text": "I choose peace as my starting point.",
+"category": "CALM"
+},
+{
+"text": "Slow and steady still moves forward.",
+"category": "CALM"
+},
+{
+"text": "I am comfortable being awake.",
+"category": "CALM"
+},
+{
+"text": "Quiet mornings restore me.",
+"category": "CALM"
+},
+{
+"text": "I hold today lightly.",
+"category": "CALM"
+},
+{
+"text": "My breath anchors me here.",
+"category": "CALM"
+},
+{
+"text": "I am unhurried and effective.",
+"category": "CALM"
+},
+{
+"text": "Softness is not weakness.",
+"category": "CALM"
+},
+{
+"text": "I begin from a place of calm.",
+"category": "CALM"
+},
+{
+"text": "My mind is spacious this morning.",
+"category": "CALM"
+},
+{
+"text": "I am rested enough to begin.",
+"category": "CALM"
+},
+{
+"text": "Ease and effort belong together.",
+"category": "CALM"
+},
+{
+"text": "I set a gentle intention now.",
+"category": "CALM"
+},
+{
+"text": "Today unfolds at the right pace.",
+"category": "CALM"
+},
+{
+"text": "The excuses end the moment you stand.",
+"category": "INTENSE"
+},
+{
+"text": "Nobody is going to do this for you.",
+"category": "INTENSE"
+},
+{
+"text": "Your comfort is costing you everything.",
+"category": "INTENSE"
+},
+{
+"text": "Get vertical and prove it.",
+"category": "INTENSE"
+},
+{
+"text": "Talk is finished, move your body.",
+"category": "INTENSE"
+},
+{
+"text": "The version of you that wins gets up now.",
+"category": "INTENSE"
+},
+{
+"text": "Stop wasting the only morning you get.",
+"category": "INTENSE"
+},
+{
+"text": "Regret is heavier than tiredness.",
+"category": "INTENSE"
+},
+{
+"text": "You are one decision from a better day.",
+"category": "INTENSE"
+},
+{
+"text": "Rise or explain why you didn't.",
+"category": "INTENSE"
+},
+{
+"text": "The clock does not care how you feel.",
+"category": "INTENSE"
+},
+{
+"text": "Move now, feel good later.",
+"category": "INTENSE"
+},
+{
+"text": "You are not tired, you are hesitating.",
+"category": "INTENSE"
+},
+{
+"text": "This is where most people quit.",
+"category": "INTENSE"
+},
+{
+"text": "Get up and earn your day.",
+"category": "INTENSE"
+},
+{
+"text": "Nothing improves while you lie there.",
+"category": "INTENSE"
+},
+{
+"text": "Your goals are waiting and impatient.",
+"category": "INTENSE"
+},
+{
+"text": "Choose hard now or hard later.",
+"category": "INTENSE"
+},
+{
+"text": "Stand up, the day started.",
+"category": "INTENSE"
+},
+{
+"text": "Show yourself what you are made of.",
+"category": "INTENSE"
+},
+{
+"text": "Push through the first sixty seconds.",
+"category": "INTENSE"
+},
+{
+"text": "Comfort is a slow way to lose.",
+"category": "INTENSE"
+},
+{
+"text": "No one wins from bed.",
+"category": "INTENSE"
+},
+{
+"text": "Decide right now and act.",
+"category": "INTENSE"
+},
+{
+"text": "Your future is built this minute.",
+"category": "INTENSE"
+},
+{
+"text": "My bed filed a restraining order.",
+"category": "FUNNY"
+},
+{
+"text": "I am rebooting the human system.",
+"category": "FUNNY"
+},
+{
+"text": "The pillow lost this round.",
+"category": "FUNNY"
+},
+{
+"text": "My blanket is not a legal guardian.",
+"category": "FUNNY"
+},
+{
+"text": "I have exceeded the recommended sleep dosage.",
+"category": "FUNNY"
+},
+{
+"text": "Waking up: the world's least popular sport.",
+"category": "FUNNY"
+},
+{
+"text": "My mattress will survive without me.",
+"category": "FUNNY"
+},
+{
+"text": "I am now a daytime creature.",
+"category": "FUNNY"
+},
+{
+"text": "The duvet uprising has been defeated.",
+"category": "FUNNY"
+},
+{
+"text": "Sleep mode disabled, chaos enabled.",
+"category": "FUNNY"
+},
+{
+"text": "I have officially left the horizontal zone.",
+"category": "FUNNY"
+},
+{
+"text": "My bed and I need time apart.",
+"category": "FUNNY"
+},
+{
+"text": "Snoozing is a full time job I quit.",
+"category": "FUNNY"
+},
+{
+"text": "I am upright and mildly functional.",
+"category": "FUNNY"
+},
+{
+"text": "The blanket held on but I won.",
+"category": "FUNNY"
+},
+{
+"text": "Coffee is not a personality, but it helps.",
+"category": "FUNNY"
+},
+{
+"text": "My dreams are on pause, not cancelled.",
+"category": "FUNNY"
+},
+{
+"text": "I have achieved the standing position.",
+"category": "FUNNY"
+},
+{
+"text": "Sleep was great, but rent exists.",
+"category": "FUNNY"
+},
+{
+"text": "My alarm is not the villain here.",
+"category": "FUNNY"
+},
+{
+"text": "I am awake against my body's advice.",
+"category": "FUNNY"
+},
+{
+"text": "The bed will be here tonight, relax.",
+"category": "FUNNY"
+},
+{
+"text": "Consciousness reinstalled successfully.",
+"category": "FUNNY"
+},
+{
+"text": "My comfort zone has been evacuated.",
+"category": "FUNNY"
+},
+{
+"text": "I am legally awake now.",
+"category": "FUNNY"
+},
+{
+"text": "I am choosing to get out of bed.",
+"category": "WAKEUP"
+},
+{
+"text": "My day cannot start while I lie here.",
+"category": "WAKEUP"
+},
+{
+"text": "I am awake and I am staying awake.",
+"category": "WAKEUP"
+},
+{
+"text": "Sleep had its turn, now I have mine.",
+"category": "WAKEUP"
+},
+{
+"text": "I am removing the covers right now.",
+"category": "WAKEUP"
+},
+{
+"text": "This alarm means I am getting up.",
+"category": "WAKEUP"
+},
+{
+"text": "I am fully conscious and moving.",
+"category": "WAKEUP"
+},
+{
+"text": "My morning starts the second I stand.",
+"category": "WAKEUP"
+},
+{
+"text": "I will not argue with my own alarm.",
+"category": "WAKEUP"
+},
+{
+"text": "Getting up is the first thing I do right.",
+"category": "WAKEUP"
+},
+{
+"text": "I am rising because I decided to.",
+"category": "WAKEUP"
+},
+{
+"text": "No part of me is going back to sleep.",
+"category": "WAKEUP"
+},
+{
+"text": "I am upright and ready.",
+"category": "WAKEUP"
+},
+{
+"text": "The bed is behind me now.",
+"category": "WAKEUP"
+},
+{
+"text": "I am starting my day without delay.",
+"category": "WAKEUP"
+},
+{
+"text": "My feet are touching the floor.",
+"category": "WAKEUP"
+},
+{
+"text": "I am awake, alert, and moving.",
+"category": "WAKEUP"
+},
+{
+"text": "This is not a negotiation, I am up.",
+"category": "WAKEUP"
+},
+{
+"text": "I have already made the decision.",
+"category": "WAKEUP"
+},
+{
+"text": "Sleep ends here, today begins.",
+"category": "WAKEUP"
+},
+{
+"text": "I am getting up for my own sake.",
+"category": "WAKEUP"
+},
+{
+"text": "My body is awake and following through.",
+"category": "WAKEUP"
+},
+{
+"text": "The hardest part is over, I am standing.",
+"category": "WAKEUP"
+},
+{
+"text": "I am done resting for now.",
+"category": "WAKEUP"
+},
+{
+"text": "I have woken up completely.",
+"category": "WAKEUP"
+}
+]
