@@ -46,6 +46,23 @@ jobs:
           set -o pipefail
           ./gradlew :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee ci-release.log
 
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+
+      - name: Instrumented tests on emulator
+        id: emulator
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: ./gradlew :app:connectedDebugAndroidTest --no-daemon --stacktrace 2>&1 | tee ci-emulator.log
+
       - name: Collect results
         if: always()
         run: |
@@ -53,9 +70,12 @@ jobs:
           tail -c 60000 ci-tests.log   > ci/tests.log   2>/dev/null || true
           tail -c 60000 ci-debug.log   > ci/debug.log   2>/dev/null || true
           tail -c 60000 ci-release.log > ci/release.log 2>/dev/null || true
+          tail -c 60000 ci-emulator.log > ci/emulator.log 2>/dev/null || true
+          find app/build/outputs/androidTest-results -name '*.xml' -exec cat {} \; 2>/dev/null | tail -c 40000 > ci/androidtest.xml || true
           { echo "tests=${{ steps.tests.outcome }}";
             echo "debug=${{ steps.debug.outcome }}";
             echo "release=${{ steps.release.outcome }}";
+            echo "emulator=${{ steps.emulator.outcome }}";
             echo "--- apks ---";
             find app/build/outputs -name '*.apk' -printf '%p %s bytes\n' 2>/dev/null || true;
           } > ci/status.txt
