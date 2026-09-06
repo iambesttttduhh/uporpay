@@ -16,27 +16,27 @@ Daemon will be stopped at the end of the build
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
 > Task :app:javaPreCompileRelease FROM-CACHE
-> Task :app:processReleaseManifestForPackage
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseResources
 > Task :app:mergeReleaseNativeLibs
+> Task :app:processReleaseManifestForPackage
+> Task :app:checkReleaseDuplicateClasses
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so, libdatastore_shared_counter.so.
 
-> Task :app:extractReleaseNativeSymbolTables
-> Task :app:checkReleaseDuplicateClasses
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseStartupProfile
+> Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseShaders
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
 > Task :app:compressReleaseAssets
-> Task :app:processReleaseResources
 > Task :app:extractReleaseVersionControlInfo
+> Task :app:processReleaseResources
 > Task :app:collectReleaseDependencies
 > Task :app:sdkReleaseDependencyData
 > Task :app:writeReleaseAppMetadata
@@ -51,9 +51,9 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app:expandReleaseArtProfileWildcards
 > Task :app:mergeReleaseJavaResource
 > Task :app:lintVitalAnalyzeRelease
+> Task :app:minifyReleaseWithR8
 > Task :app:lintVitalReportRelease
 > Task :app:lintVitalRelease
-> Task :app:minifyReleaseWithR8
 > Task :app:compileReleaseArtProfile
 > Task :app:shrinkReleaseRes
 > Task :app:convertShrunkResourcesToBinaryRelease
@@ -61,7 +61,7 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app:packageRelease
 > Task :app:createReleaseApkListingFileRedirect
 > Task :app:assembleRelease
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/release-1788671495257.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/release-1788672010009.json
 
-BUILD SUCCESSFUL in 2m 2s
+BUILD SUCCESSFUL in 2m 18s
 51 actionable tasks: 47 executed, 4 from cache

@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="com.wakelock.AlarmPipelineTest" tests="8" failures="0" errors="0" skipped="0" time="1.022" timestamp="2026-09-06T05:25:05" hostname="localhost">
+  <properties>
+    <property name="device" value="emulator-5554 - 11" />
+    <property name="flavor" value="" />
+    <property name="project" value=":app" />
+  </properties>
+  <testcase name="completing_all_lines_records_success_and_stats" classname="com.wakelock.AlarmPipelineTest" time="0.016" />
+  <testcase name="alarm_can_be_created_and_scheduled" classname="com.wakelock.AlarmPipelineTest" time="0.001" />
+  <testcase name="randomisation_avoids_immediate_repeats" classname="com.wakelock.AlarmPipelineTest" time="0.0" />
+  <testcase name="restart_with_generates_new_lines_and_deadline" classname="com.wakelock.AlarmPipelineTest" time="0.012" />
+  <testcase name="challenge_lines_are_frozen_and_restored" classname="com.wakelock.AlarmPipelineTest" time="0.005" />
+  <testcase name="outside_mode_appends_two_extra_lines" classname="com.wakelock.AlarmPipelineTest" time="0.028" />
+  <testcase name="database_seeds_at_least_500_lines" classname="com.wakelock.AlarmPipelineTest" time="0.001" />
+  <testcase name="failure_is_recorded_with_action" classname="com.wakelock.AlarmPipelineTest" time="0.0" />
+</testsuite>

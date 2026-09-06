@@ -17,8 +17,8 @@ Daemon will be stopped at the end of the build
 > Task :app:preBuild UP-TO-DATE
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:generateDebugBuildConfig
-> Task :app:checkDebugAarMetadata
 > Task :app:generateDebugResValues
+> Task :app:checkDebugAarMetadata
 > Task :app:mapDebugSourceSetPaths
 > Task :app:generateDebugResources
 > Task :app:packageDebugResources
@@ -29,22 +29,22 @@ Daemon will be stopped at the end of the build
 > Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
 > Task :app:preDebugUnitTestBuild UP-TO-DATE
-> Task :app:javaPreCompileDebug
 > Task :app:javaPreCompileDebugUnitTest
+> Task :app:javaPreCompileDebug
 > Task :app:processDebugManifestForPackage
 > Task :app:processDebugResources
 > Task :app:kspDebugKotlin
 > Task :app:compileDebugKotlin
 > Task :app:compileDebugJavaWithJavac
+> Task :app:bundleDebugClassesToRuntimeJar
 > Task :app:bundleDebugClassesToCompileJar
 > Task :app:processDebugJavaRes
-> Task :app:bundleDebugClassesToRuntimeJar
 > Task :app:kspDebugUnitTestKotlin
 > Task :app:compileDebugUnitTestKotlin
 > Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
 > Task :app:processDebugUnitTestJavaRes
 > Task :app:testDebugUnitTest
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/tests-1788671282178.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/tests-1788671792596.json
 
-BUILD SUCCESSFUL in 2m 12s
+BUILD SUCCESSFUL in 2m 4s
 26 actionable tasks: 26 executed
