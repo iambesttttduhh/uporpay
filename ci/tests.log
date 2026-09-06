@@ -17,38 +17,34 @@ Daemon will be stopped at the end of the build
 > Task :app:preBuild UP-TO-DATE
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:generateDebugBuildConfig
-> Task :app:generateDebugResValues
 > Task :app:checkDebugAarMetadata
+> Task :app:generateDebugResValues
 > Task :app:mapDebugSourceSetPaths
 > Task :app:generateDebugResources
 > Task :app:packageDebugResources
+> Task :app:mergeDebugResources
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
 > Task :app:parseDebugLocalResources
-> Task :app:mergeDebugResources
 > Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
-> Task :app:processDebugManifestForPackage
-> Task :app:javaPreCompileDebug
 > Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebug
 > Task :app:javaPreCompileDebugUnitTest
+> Task :app:processDebugManifestForPackage
 > Task :app:processDebugResources
-
 > Task :app:kspDebugKotlin
-e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
-    1. Kotlin compile daemon is ready
-
 > Task :app:compileDebugKotlin
 > Task :app:compileDebugJavaWithJavac
+> Task :app:bundleDebugClassesToCompileJar
 > Task :app:processDebugJavaRes
 > Task :app:bundleDebugClassesToRuntimeJar
-> Task :app:bundleDebugClassesToCompileJar
 > Task :app:kspDebugUnitTestKotlin
 > Task :app:compileDebugUnitTestKotlin
 > Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
 > Task :app:processDebugUnitTestJavaRes
 > Task :app:testDebugUnitTest
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/tests-1788670742274.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/tests-1788671282178.json
 
-BUILD SUCCESSFUL in 2m 19s
+BUILD SUCCESSFUL in 2m 12s
 26 actionable tasks: 26 executed

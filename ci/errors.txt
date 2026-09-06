@@ -1,4 +1,0 @@
-e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
-FAILURE: Build failed with an exception.
-* What went wrong:
-Caused by: java.lang.RuntimeException: Lint found fatal errors while assembling a release target.
