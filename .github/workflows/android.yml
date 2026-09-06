@@ -28,17 +28,23 @@ jobs:
       - name: Unit tests
         id: tests
         continue-on-error: true
-        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace 2>&1 | tee ci-tests.log
+        run: |
+          set -o pipefail
+          ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace 2>&1 | tee ci-tests.log
 
       - name: Build debug APK
         id: debug
         continue-on-error: true
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee ci-debug.log
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee ci-debug.log
 
       - name: Build release APK
         id: release
         continue-on-error: true
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee ci-release.log
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee ci-release.log
 
       - name: Collect results
         if: always()
@@ -56,6 +62,9 @@ jobs:
           # copy test xml failures for detail
           find app/build/test-results -name '*.xml' -exec sh -c 'grep -l "<failure\|<error" "$1" >/dev/null 2>&1 && cat "$1"' _ {} \; \
             | tail -c 30000 > ci/test-failures.xml 2>/dev/null || true
+          { grep -E "^e: |error:|FAILURE:|What went wrong|Caused by:" ci-tests.log   | head -60; } > ci/errors.txt 2>/dev/null || true
+          { grep -E "^e: |error:|FAILURE:|What went wrong|Caused by:" ci-debug.log   | head -60; } >> ci/errors.txt 2>/dev/null || true
+          { grep -E "^e: |error:|FAILURE:|What went wrong|Caused by:" ci-release.log | head -60; } >> ci/errors.txt 2>/dev/null || true
 
       - name: Upload APK artifact
         if: always()
