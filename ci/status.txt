@@ -1,4 +1,5 @@
 tests=success
 debug=success
-release=success
+release=failure
 --- apks ---
+app/build/outputs/apk/debug/app-debug.apk 18590175 bytes
