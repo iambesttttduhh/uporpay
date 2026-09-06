@@ -1,0 +1,7 @@
+name: probe
+on: [workflow_dispatch, push]
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: java -version; echo "SDK=$ANDROID_HOME"; ls $ANDROID_HOME; curl -sS -o /dev/null -w "gmaven:%{http_code}\n" https://maven.google.com/
