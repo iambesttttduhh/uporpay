@@ -1,16 +1,70 @@
 <?xml version='1.0' encoding='UTF-8' ?>
-<testsuite name="com.wakelock.AlarmPipelineTest" tests="8" failures="0" errors="0" skipped="0" time="1.022" timestamp="2026-09-06T05:25:05" hostname="localhost">
+<testsuite name="com.wakelock.AlarmPipelineTest" tests="10" failures="1" errors="0" skipped="0" time="4.728" timestamp="2026-09-06T05:37:40" hostname="localhost">
   <properties>
     <property name="device" value="emulator-5554 - 11" />
     <property name="flavor" value="" />
     <property name="project" value=":app" />
   </properties>
-  <testcase name="completing_all_lines_records_success_and_stats" classname="com.wakelock.AlarmPipelineTest" time="0.016" />
-  <testcase name="alarm_can_be_created_and_scheduled" classname="com.wakelock.AlarmPipelineTest" time="0.001" />
-  <testcase name="randomisation_avoids_immediate_repeats" classname="com.wakelock.AlarmPipelineTest" time="0.0" />
-  <testcase name="restart_with_generates_new_lines_and_deadline" classname="com.wakelock.AlarmPipelineTest" time="0.012" />
-  <testcase name="challenge_lines_are_frozen_and_restored" classname="com.wakelock.AlarmPipelineTest" time="0.005" />
-  <testcase name="outside_mode_appends_two_extra_lines" classname="com.wakelock.AlarmPipelineTest" time="0.028" />
-  <testcase name="database_seeds_at_least_500_lines" classname="com.wakelock.AlarmPipelineTest" time="0.001" />
-  <testcase name="failure_is_recorded_with_action" classname="com.wakelock.AlarmPipelineTest" time="0.0" />
+  <testcase name="completing_all_lines_records_success_and_stats" classname="com.wakelock.AlarmPipelineTest" time="0.013" />
+  <testcase name="alarm_can_be_created_and_scheduled" classname="com.wakelock.AlarmPipelineTest" time="0.004" />
+  <testcase name="randomisation_avoids_immediate_repeats" classname="com.wakelock.AlarmPipelineTest" time="0.002" />
+  <testcase name="restart_with_generates_new_lines_and_deadline" classname="com.wakelock.AlarmPipelineTest" time="0.001" />
+  <testcase name="challenge_lines_are_frozen_and_restored" classname="com.wakelock.AlarmPipelineTest" time="0.021" />
+  <testcase name="outside_mode_appends_two_extra_lines" classname="com.wakelock.AlarmPipelineTest" time="0.031" />
+  <testcase name="database_seeds_at_least_500_lines" classname="com.wakelock.AlarmPipelineTest" time="0.004" />
+  <testcase name="failure_is_recorded_with_action" classname="com.wakelock.AlarmPipelineTest" time="0.004" />
+  <testcase name="onboarding_can_be_completed_to_alarm_editor" classname="com.wakelock.LaunchSmokeTest" time="1.771">
+    <failure>java.lang.IllegalArgumentException: Cannot navigate to edit. Navigation graph has not been set for NavController androidx.navigation.NavHostController&#64;3dd88f4.
+at androidx.navigation.NavController.navigate(NavController.kt:2380)
+at androidx.navigation.NavController.navigate$default(NavController.kt:2375)
+at com.wakelock.ui.NavKt.WakeLockApp$lambda$4$lambda$3(Nav.kt:36)
+at com.wakelock.ui.NavKt.$r8$lambda$eQih3yA4E1adaA_PfVDBBNPYLZk(Unknown Source:0)
+at com.wakelock.ui.NavKt$$ExternalSyntheticLambda0.invoke(D8$$SyntheticClass:0)
+at com.wakelock.ui.onboarding.OnboardingKt.OnboardingScreen$lambda$10$lambda$9$lambda$6$lambda$5(Onboarding.kt:63)
+at com.wakelock.ui.onboarding.OnboardingKt.$r8$lambda$6uM5aOz64JwK-_5fT56-cx5eWRA(Unknown Source:0)
+at com.wakelock.ui.onboarding.OnboardingKt$$ExternalSyntheticLambda0.invoke(D8$$SyntheticClass:0)
+at androidx.compose.foundation.ClickableNode$clickPointerInput$3.invoke-k-4lQ0M(Clickable.kt:639)
+at androidx.compose.foundation.ClickableNode$clickPointerInput$3.invoke(Clickable.kt:633)
+at androidx.compose.foundation.gestures.TapGestureDetectorKt$detectTapAndPress$2$1.invokeSuspend(TapGestureDetector.kt:255)
+at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+at kotlinx.coroutines.DispatchedTaskKt.resume(DispatchedTask.kt:165)
+at kotlinx.coroutines.DispatchedTaskKt.dispatch(DispatchedTask.kt:154)
+at kotlinx.coroutines.CancellableContinuationImpl.dispatchResume(CancellableContinuationImpl.kt:470)
+at kotlinx.coroutines.CancellableContinuationImpl.resumeImpl$kotlinx_coroutines_core(CancellableContinuationImpl.kt:504)
+at kotlinx.coroutines.CancellableContinuationImpl.resumeImpl$kotlinx_coroutines_core$default(CancellableContinuationImpl.kt:493)
+at kotlinx.coroutines.CancellableContinuationImpl.resumeWith(CancellableContinuationImpl.kt:359)
+at androidx.compose.ui.input.pointer.SuspendingPointerInputModifierNodeImpl$PointerEventHandlerCoroutine.offerPointerEvent(SuspendingPointerInputFilter.kt:719)
+at androidx.compose.ui.input.pointer.SuspendingPointerInputModifierNodeImpl.dispatchPointerEvent(SuspendingPointerInputFilter.kt:598)
+at androidx.compose.ui.input.pointer.SuspendingPointerInputModifierNodeImpl.onPointerEvent-H0pRuoY(SuspendingPointerInputFilter.kt:620)
+at androidx.compose.foundation.AbstractClickableNode.onPointerEvent-H0pRuoY(Clickable.kt:1044)
+at androidx.compose.ui.input.pointer.Node.dispatchMainEventPass(HitPathTracker.kt:387)
+at androidx.compose.ui.input.pointer.NodeParent.dispatchMainEventPass(HitPathTracker.kt:229)
+at androidx.compose.ui.input.pointer.HitPathTracker.dispatchChanges(HitPathTracker.kt:144)
+at androidx.compose.ui.input.pointer.PointerInputEventProcessor.process-BIzXfog(PointerInputEventProcessor.kt:120)
+at androidx.compose.ui.platform.AndroidComposeView.sendMotionEvent-8iAsVTc(AndroidComposeView.android.kt:1994)
+at androidx.compose.ui.platform.AndroidComposeView.handleMotionEvent-8iAsVTc(AndroidComposeView.android.kt:1945)
+at androidx.compose.ui.platform.AndroidComposeView.dispatchTouchEvent(AndroidComposeView.android.kt:1829)
+at androidx.compose.ui.test.AndroidInputDispatcher_androidKt$createInputDispatcher$2.invoke(AndroidInputDispatcher.android.kt:68)
+at androidx.compose.ui.test.AndroidInputDispatcher_androidKt$createInputDispatcher$2.invoke(AndroidInputDispatcher.android.kt:63)
+at androidx.compose.ui.test.AndroidInputDispatcher.sendAndRecycleEvent(AndroidInputDispatcher.android.kt:597)
+at androidx.compose.ui.test.AndroidInputDispatcher.access$sendAndRecycleEvent(AndroidInputDispatcher.android.kt:83)
+at androidx.compose.ui.test.AndroidInputDispatcher$flush$1.invoke(AndroidInputDispatcher.android.kt:562)
+at androidx.compose.ui.test.AndroidInputDispatcher$flush$1.invoke(AndroidInputDispatcher.android.kt:548)
+at androidx.compose.ui.test.AndroidSynchronization_androidKt.runOnUiThread$lambda$0(AndroidSynchronization.android.kt:37)
+at androidx.compose.ui.test.AndroidSynchronization_androidKt.$r8$lambda$opyMdTZ52jorqLaIG4SKpPr_Zno(Unknown Source:0)
+at androidx.compose.ui.test.AndroidSynchronization_androidKt$$ExternalSyntheticLambda0.call(D8$$SyntheticClass:0)
+at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)
+at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2223)
+at android.os.Handler.handleCallback(Handler.java:938)
+at android.os.Handler.dispatchMessage(Handler.java:99)
+at android.os.Looper.loop(Looper.java:223)
+at android.app.ActivityThread.main(ActivityThread.java:7656)
+at java.lang.reflect.Method.invoke(Native Method)
+at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:592)
+at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:947)
+</failure>
+  </testcase>
+  <testcase name="app_launches_and_shows_onboarding_or_home" classname="com.wakelock.LaunchSmokeTest" time="1.329" />
 </testsuite>
