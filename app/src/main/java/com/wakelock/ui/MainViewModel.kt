@@ -99,4 +99,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun resetStats() = viewModelScope.launch(Dispatchers.IO) {
         db.sessions().cancelAllPending()
     }
+
+    /**
+     * Simulates a failure by driving the REAL pipeline: schedules a test alarm whose
+     * time limit is a few seconds, so the genuine timer expiry + failure action runs.
+     */
+    fun simulateFailure(a: AlarmEntity, limitSec: Long = 10) = viewModelScope.launch(Dispatchers.IO) {
+        val base = a.copy(timeLimitSec = limitSec)
+        val id = if (base.id == 0L) db.alarms().insert(base) else { db.alarms().update(base); base.id }
+        AlarmScheduler.scheduleAt(getApplication(), id, System.currentTimeMillis() + 3000L, true)
+    }
+
+    /** Fires the first available alarm (or a default) through the real receiver->service path. */
+    fun triggerFirstAlarmNow() = viewModelScope.launch(Dispatchers.IO) {
+        val a = db.alarms().getAll().firstOrNull() ?: AlarmEntity().also { it }
+        val id = if (a.id == 0L) db.alarms().insert(a) else a.id
+        AlarmScheduler.scheduleAt(getApplication(), id, System.currentTimeMillis() + 2000L, true)
+    }
 }

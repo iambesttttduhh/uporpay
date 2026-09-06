@@ -50,8 +50,6 @@ fun AlarmScreen(onFinished: () -> Unit) {
     val speech = remember { SpeechClient(ctx) }
     DisposableEffect(Unit) { onDispose { speech.destroy() } }
 
-    LaunchedEffect(st.finished) { if (st.finished) { /* completion screen shown below */ } }
-
     val session = st.session
     val total = st.lines.size
     val idx = session?.currentIndex ?: 0
@@ -73,9 +71,7 @@ fun AlarmScreen(onFinished: () -> Unit) {
 
     // ---------- outside mode gate ----------
     if (st.state == AlarmState.OUTSIDE_PENDING) {
-        com.wakelock.ui.outside.OutsideScreen(
-            onVerified = { AlarmForegroundService.state.value.let { } }
-        )
+        com.wakelock.ui.outside.OutsideScreen(onVerified = { })
         return
     }
 
@@ -115,8 +111,6 @@ fun AlarmScreen(onFinished: () -> Unit) {
                         else -> "That didn't match. Try again."
                     }
                 }
-                (ctx as? android.app.Activity)?.let { }
-                AlarmForegroundService.state.value.let { }
                 serviceSubmit(res.accepted, text, res.score)
             },
             onError = { msg ->

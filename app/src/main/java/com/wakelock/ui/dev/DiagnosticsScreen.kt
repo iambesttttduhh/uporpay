@@ -23,7 +23,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun DiagnosticsScreen(state: HomeState) {
+fun DiagnosticsScreen(state: HomeState, vm: com.wakelock.ui.MainViewModel? = null) {
     val ctx = LocalContext.current
     val ld = remember { LockdownController(ctx) }
     val rt by AlarmForegroundService.state.collectAsState()
@@ -58,6 +58,22 @@ fun DiagnosticsScreen(state: HomeState) {
         Row2("Android", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
         Row2("Device", "${Build.MANUFACTURER} ${Build.MODEL}")
         Row2("Events recorded", state.events.size.toString())
+
+        if (com.wakelock.BuildConfig.TEST_TOOLS && vm != null) {
+            Spacer(Modifier.height(12.dp))
+            Text("TEST ACTIONS", fontWeight = FontWeight.Black, fontSize = 13.sp, letterSpacing = 2.sp)
+            Text("These drive the real alarm pipeline (receiver → service → challenge), not a mock UI.",
+                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = { vm.triggerFirstAlarmNow() }, modifier = Modifier.fillMaxWidth()) {
+                Text("TRIGGER ALARM NOW (2s)")
+            }
+            val first = state.alarms.firstOrNull()
+            OutlinedButton(
+                onClick = { first?.let { vm.simulateFailure(it) } },
+                enabled = first != null,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("SIMULATE FAILURE (10s limit)") }
+        }
         Spacer(Modifier.height(30.dp))
     }
 }

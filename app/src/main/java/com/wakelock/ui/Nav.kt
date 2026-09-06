@@ -88,7 +88,7 @@ fun WakeLockApp(vm: MainViewModel, state: HomeState, requestNotifications: () ->
             }
             composable("help") { HelpScreen() }
             composable("achievements") { AchievementsScreen(state) }
-            composable("diagnostics") { DiagnosticsScreen(state) }
+            composable("diagnostics") { DiagnosticsScreen(state, vm) }
             composable("edit") {
                 AlarmEditScreen(
                     initial = editing ?: AlarmEntity(),
