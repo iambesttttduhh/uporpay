@@ -1,0 +1,4 @@
+tests=success
+debug=success
+release=success
+--- apks ---
