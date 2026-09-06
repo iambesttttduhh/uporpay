@@ -3,6 +3,8 @@ on: [workflow_dispatch, push]
 jobs:
   p:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with: { ref: arena/01a07297-uporpay }
