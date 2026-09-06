@@ -4,4 +4,13 @@ jobs:
   p:
     runs-on: ubuntu-latest
     steps:
-      - run: java -version; echo "SDK=$ANDROID_HOME"; ls $ANDROID_HOME; curl -sS -o /dev/null -w "gmaven:%{http_code}\n" https://maven.google.com/
+      - uses: actions/checkout@v4
+        with: { ref: arena/01a07297-uporpay }
+      - name: probe
+        run: |
+          mkdir -p ci
+          { java -version; echo "GRADLE:"; gradle -v | head -12; echo "SDK=$ANDROID_HOME"; ls $ANDROID_HOME; ls $ANDROID_HOME/platforms 2>/dev/null; ls $ANDROID_HOME/build-tools 2>/dev/null; } > ci/probe.txt 2>&1
+      - name: commit
+        run: |
+          git config user.name ci; git config user.email ci@x
+          git add -f ci/probe.txt && git commit -m "ci: probe results [skip ci]" && git push origin HEAD:arena/01a07297-uporpay
